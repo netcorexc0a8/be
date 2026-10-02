@@ -9,4 +9,12 @@
 - [CLAUDE.md](CLAUDE.md) — правила для AI-агента
 - [prototype/index.html](prototype/index.html) — утверждённый прототип экрана
 
+## Запуск
+
+```
+npm install
+npm run dev     # приложение на http://localhost:5173
+npm run check   # проверка типов, тесты и сборка
+```
+
 Расчёт ориентировочный. Нормы и объёмы согласуйте с педиатром.
