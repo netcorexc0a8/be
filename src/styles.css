@@ -119,3 +119,7 @@ input.kid:hover { border-color: var(--line); }
 input:disabled { opacity: .6; }
 input[type="date"] { width: 160px; }
 select { width: auto; max-width: 100%; }
+.backup { display: flex; flex-direction: column; gap: 10px; padding-block: 14px; }
+.hint-text { margin: 0; font-size: 14px; color: var(--muted); }
+.confirm-row { margin-top: 8px; }
+#backupStatus { background: var(--accent-soft); color: var(--fg); }
