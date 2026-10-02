@@ -45,11 +45,12 @@ header { display: flex; justify-content: space-between; align-items: baseline; g
 .daily b { font-family: var(--font-display); font-size: 48px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; color: var(--accent); }
 .daily span { font-size: 18px; color: var(--muted); }
 .kcal { font-size: 14px; color: var(--muted); }
-.bottles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
-.bottle { display: flex; align-items: center; gap: 12px; background: var(--bg); border-radius: 14px; padding: 12px; }
-.bottle svg { flex: none; width: 46px; height: 92px; }
-.bottle .ml { font-family: var(--font-display); font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.bottle .ml small { font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--muted); }
+.bottles { display: grid; grid-template-columns: repeat(auto-fit, minmax(136px, 1fr)); gap: 10px; }
+.bottle { display: flex; align-items: center; gap: 8px; background: var(--bg); border-radius: 14px; padding: 12px; min-width: 0; }
+.bottle > div { min-width: 0; }
+.bottle svg { flex: none; width: 38px; height: 76px; }
+.bottle .ml { font-family: var(--font-display); font-size: clamp(19px, 5.4vw, 26px); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; white-space: nowrap; }
+.bottle .ml small { font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--muted); }
 .bottle .n { font-size: 13px; color: var(--muted); }
 
 .notes { display: flex; flex-direction: column; gap: 8px; }
@@ -108,6 +109,3 @@ input.kid:hover { border-color: var(--line); }
 input:disabled { opacity: .6; }
 input[type="date"] { width: 160px; }
 select { width: auto; max-width: 100%; }
-.bottle .ml, .bottle .n { white-space: nowrap; }
-.bottle { gap: 10px; }
-.bottles { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
