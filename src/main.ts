@@ -1,3 +1,13 @@
+import '@fontsource/onest/cyrillic-400.css';
+import '@fontsource/onest/cyrillic-500.css';
+import '@fontsource/onest/cyrillic-600.css';
+import '@fontsource/onest/latin-400.css';
+import '@fontsource/onest/latin-500.css';
+import '@fontsource/onest/latin-600.css';
+import '@fontsource/unbounded/cyrillic-500.css';
+import '@fontsource/unbounded/cyrillic-700.css';
+import '@fontsource/unbounded/latin-500.css';
+import '@fontsource/unbounded/latin-700.css';
 import './styles.css';
 import { parseWeightG, RULES } from './core';
 import {
@@ -205,3 +215,12 @@ el('addWeight').addEventListener('click', () => {
 });
 
 render();
+
+// Сохраняем приложение на телефоне для работы без интернета (только в собранной версии).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {
+      // без service worker приложение просто работает онлайн
+    });
+  });
+}
