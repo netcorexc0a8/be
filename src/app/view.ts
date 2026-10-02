@@ -23,8 +23,25 @@ export interface ScreenView {
   warnings: Issue[];
   hint: { text: string; min: number; max: number; matches: boolean } | null;
   breakdown: [string, string][];
-  recentWeights: WeightEntry[];
+  history: HistoryRow[];
+  chart: WeightChart | null;
 }
+
+export interface HistoryRow extends WeightEntry {
+  /** Прибавка к предыдущему замеру, текстом: «+150 г за 12 дн.»; null для первого замера. */
+  change: string | null;
+  canDelete: boolean;
+}
+
+export interface WeightChart {
+  points: { x: number; y: number }[];
+  firstLabel: string;
+  lastLabel: string;
+  lastValue: string;
+}
+
+/** Размеры области графика в координатах SVG viewBox. */
+export const CHART = { width: 300, height: 110, left: 8, right: 64, top: 12, bottom: 22 } as const;
 
 const nf0 = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
 const nf1 = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -119,6 +136,45 @@ export function buildView(state: AppState, today: string): ScreenView {
     warnings,
     hint,
     breakdown,
-    recentWeights: state.weights.slice(-3).reverse(),
+    history: weightHistory(state.weights),
+    chart: weightChart(state.weights),
+  };
+}
+
+const signed = (n: number): string => (n > 0 ? `+${nf0.format(n)}` : n < 0 ? `−${nf0.format(-n)}` : '0');
+
+/** Замеры, новые сверху, с прибавкой к предыдущему. */
+export function weightHistory(weights: WeightEntry[]): HistoryRow[] {
+  const rows = weights.map((w, i): HistoryRow => {
+    const prev = weights[i - 1];
+    const change = prev
+      ? `${signed(w.grams - prev.grams)} г за ${daysBetween(prev.date, w.date)} дн.`
+      : null;
+    return { ...w, change, canDelete: weights.length > 1 };
+  });
+  return rows.reverse();
+}
+
+/** Точки графика: по оси X дни, по оси Y граммы. Нужно хотя бы два замера. */
+export function weightChart(weights: WeightEntry[]): WeightChart | null {
+  if (weights.length < 2) return null;
+  const first = weights[0]!;
+  const last = weights[weights.length - 1]!;
+  const span = Math.max(daysBetween(first.date, last.date), 1);
+  const grams = weights.map((w) => w.grams);
+  const lo = Math.min(...grams);
+  const hi = Math.max(...grams);
+  const range = Math.max(hi - lo, 100);
+  const w = CHART.width - CHART.left - CHART.right;
+  const h = CHART.height - CHART.top - CHART.bottom;
+  const points = weights.map((e) => ({
+    x: +(CHART.left + (daysBetween(first.date, e.date) / span) * w).toFixed(1),
+    y: +(CHART.top + h - ((e.grams - lo) / range) * h).toFixed(1),
+  }));
+  return {
+    points,
+    firstLabel: formatDayMonth(first.date),
+    lastLabel: formatDayMonth(last.date),
+    lastValue: `${nf0.format(last.grams)} г`,
   };
 }

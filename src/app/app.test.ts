@@ -5,11 +5,12 @@ import {
   loadState,
   localToday,
   parseState,
+  removeWeight,
   saveState,
   STORAGE_KEY,
   type AppState,
 } from './state';
-import { buildView } from './view';
+import { buildView, CHART, weightChart } from './view';
 
 const TODAY = '2026-10-02';
 
@@ -20,6 +21,16 @@ const memoryStorage = () => {
     setItem: (k: string, v: string) => void data.set(k, v),
   };
 };
+
+describe('удаление замера', () => {
+  it('удаляет замер по дате, последний оставшийся не трогает', () => {
+    let s = addWeight(exampleState('2026-09-28'), { date: '2026-10-02', grams: 5800 });
+    s = removeWeight(s, '2026-09-28');
+    expect(s.weights).toEqual([{ date: '2026-10-02', grams: 5800 }]);
+    expect(removeWeight(s, '2026-10-02')).toBe(s);
+    expect(removeWeight(s, '2026-01-01')).toBe(s);
+  });
+});
 
 describe('состояние', () => {
   it('при первом запуске показывает пример из методики', () => {
@@ -119,16 +130,43 @@ describe('экран', () => {
     expect(v.warnings.map((w) => w.code)).toContain('portion-exceeds-bottle');
   });
 
-  it('последние три замера, новые сверху', () => {
+  it('история: новые сверху, с прибавкой к предыдущему замеру', () => {
     const s = {
       ...example,
       weights: [
-        { date: '2026-07-01', grams: 4000 },
         { date: '2026-08-01', grams: 4600 },
         { date: '2026-09-01', grams: 5200 },
+        { date: '2026-09-21', grams: 5150 },
         { date: TODAY, grams: 5700 },
       ],
     };
-    expect(buildView(s, TODAY).recentWeights.map((w) => w.grams)).toEqual([5700, 5200, 4600]);
+    const h = buildView(s, TODAY).history;
+    expect(h.map((r) => [r.date, r.change])).toEqual([
+      [TODAY, '+550 г за 11 дн.'],
+      ['2026-09-21', '−50 г за 20 дн.'],
+      ['2026-09-01', '+600 г за 31 дн.'],
+      ['2026-08-01', null],
+    ]);
+    expect(h.every((r) => r.canDelete)).toBe(true);
+  });
+
+  it('единственный замер нельзя удалить', () => {
+    expect(buildView(example, TODAY).history[0]?.canDelete).toBe(false);
+  });
+
+  it('график строится по датам и весу', () => {
+    expect(buildView(example, TODAY).chart).toBeNull();
+    const chart = weightChart([
+      { date: '2026-09-01', grams: 5000 },
+      { date: '2026-09-11', grams: 5300 },
+      { date: '2026-10-01', grams: 5600 },
+    ]);
+    expect(chart?.points).toEqual([
+      { x: CHART.left, y: CHART.height - CHART.bottom },
+      { x: +(CHART.left + (CHART.width - CHART.left - CHART.right) / 3).toFixed(1), y: +(CHART.top + (CHART.height - CHART.top - CHART.bottom) / 2).toFixed(1) },
+      { x: CHART.width - CHART.right, y: CHART.top },
+    ]);
+    expect(chart?.firstLabel).toBe('1 сентября');
+    expect(chart?.lastValue.replace(/\s/g, ' ')).toBe('5 600 г');
   });
 });

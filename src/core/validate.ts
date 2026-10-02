@@ -9,7 +9,9 @@ export type IssueCode =
   | 'feedings-out-of-range'
   | 'weight-stale'
   | 'complementary-food'
-  | 'portion-exceeds-bottle';
+  | 'portion-exceeds-bottle'
+  | 'weight-date-in-future'
+  | 'weight-date-before-birth';
 
 export interface Issue {
   code: IssueCode;
@@ -108,4 +110,25 @@ export function bottleWarning(
     code: 'portion-exceeds-bottle',
     message: `Порция больше бутылочки на ${rules.bottleMl} мл. Возможно, стоит добавить кормление.`,
   };
+}
+
+/** Проверка нового замера веса перед сохранением. */
+export function validateWeightEntry(
+  entry: { grams: number; date: string; dob: string; today: string },
+  rules: FeedingRules = RULES,
+): Issue | null {
+  const kg = entry.grams / 1000;
+  if (!(kg >= rules.weightKg.min && kg <= rules.weightKg.max)) {
+    return {
+      code: 'weight-out-of-range',
+      message: `Проверьте вес: от ${rules.weightKg.min.toLocaleString('ru-RU')} до ${rules.weightKg.max.toLocaleString('ru-RU')} кг, например 5700 или 5,7.`,
+    };
+  }
+  if (daysBetween(entry.today, entry.date) > 0) {
+    return { code: 'weight-date-in-future', message: 'Дата замера позже сегодняшнего дня.' };
+  }
+  if (daysBetween(entry.dob, entry.date) < 0) {
+    return { code: 'weight-date-before-birth', message: 'Дата замера раньше даты рождения.' };
+  }
+  return null;
 }

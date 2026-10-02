@@ -115,6 +115,14 @@ export function addWeight(state: AppState, entry: WeightEntry): AppState {
   return { ...state, weights, isExample: false };
 }
 
+/** Удаляет замер за дату. Последний оставшийся замер не удаляется. */
+export function removeWeight(state: AppState, date: string): AppState {
+  if (state.weights.length <= 1) return state;
+  const weights = state.weights.filter((w) => w.date !== date);
+  if (weights.length === state.weights.length) return state;
+  return { ...state, weights, isExample: false };
+}
+
 /** Сегодняшняя дата по местному времени устройства. */
 export function localToday(now: Date = new Date()): string {
   const y = now.getFullYear();
