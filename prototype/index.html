@@ -1,0 +1,303 @@
+<title>Сколько смеси</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;700&display=swap">
+<style>
+/* Layout: одна узкая колонка как экран телефона; итог сверху, ввод ниже, разбор формулы в конце */
+:root {
+  --bg: #F3F6F8;
+  --card: #FFFFFF;
+  --fg: #1C2A33;
+  --muted: #5F717D;
+  --line: #DCE4EA;
+  --accent: #2E6E8E;
+  --accent-soft: #E1EEF4;
+  --milk: #FBF6EA;
+  --milk-edge: #E8DCC0;
+  --warn-bg: #FFF4DC;
+  --warn-fg: #7A5300;
+  --err-bg: #FDE7E5;
+  --err-fg: #9B2C22;
+  --font-display: "Unbounded", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --font-body: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11181D; --card: #1A242B; --fg: #E6EDF1; --muted: #9AABB6; --line: #2C3A43;
+    --accent: #7FB8D6; --accent-soft: #1F3644; --milk: #F1E9D6; --milk-edge: #8C7F62;
+    --warn-bg: #3A2F14; --warn-fg: #F2CF7E; --err-bg: #3D1E1B; --err-fg: #F4A69C;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11181D; --card: #1A242B; --fg: #E6EDF1; --muted: #9AABB6; --line: #2C3A43;
+  --accent: #7FB8D6; --accent-soft: #1F3644; --milk: #F1E9D6; --milk-edge: #8C7F62;
+  --warn-bg: #3A2F14; --warn-fg: #F2CF7E; --err-bg: #3D1E1B; --err-fg: #F4A69C;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.45; }
+.app { max-width: 440px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 40px; display: flex; flex-direction: column; gap: 16px; }
+header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.kid { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: -0.01em; }
+.age { color: var(--muted); font-size: 14px; }
+.sample { font-size: 12px; color: var(--muted); background: var(--accent-soft); padding: 3px 10px; border-radius: 999px; }
+
+.hero { background: var(--card); border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 16px; border: 1px solid var(--line); }
+.label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.daily { display: flex; align-items: baseline; gap: 8px; }
+.daily b { font-family: var(--font-display); font-size: 48px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; color: var(--accent); }
+.daily span { font-size: 18px; color: var(--muted); }
+.kcal { font-size: 14px; color: var(--muted); }
+.bottles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.bottle { display: flex; align-items: center; gap: 12px; background: var(--bg); border-radius: 14px; padding: 12px; }
+.bottle svg { flex: none; width: 46px; height: 92px; }
+.bottle .ml { font-family: var(--font-display); font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.bottle .ml small { font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--muted); }
+.bottle .n { font-size: 13px; color: var(--muted); }
+
+.notes { display: flex; flex-direction: column; gap: 8px; }
+.note { border-radius: 12px; padding: 10px 12px; font-size: 14px; }
+.note.warn { background: var(--warn-bg); color: var(--warn-fg); }
+.note.err { background: var(--err-bg); color: var(--err-fg); }
+
+.panel { background: var(--card); border-radius: 20px; padding: 6px 20px; border: 1px solid var(--line); }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-block: 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.row:last-child { border-bottom: 0; }
+.row > label, .row > .rl { font-weight: 500; min-width: 0; }
+.row .hint { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
+input[type="number"], input[type="date"], select {
+  font: inherit; font-size: 17px; color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 10px; padding: 8px 10px; width: 130px; text-align: right; font-variant-numeric: tabular-nums;
+}
+select { text-align: left; width: 190px; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stepper { display: flex; align-items: center; gap: 6px; }
+.stepper button { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font-size: 20px; cursor: pointer; }
+.stepper output { min-width: 26px; text-align: center; font-family: var(--font-display); font-size: 18px; font-variant-numeric: tabular-nums; }
+.range { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.suggest { flex-basis: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--accent-soft); border-radius: 12px; padding: 8px 12px; font-size: 14px; }
+.suggest b { font-variant-numeric: tabular-nums; }
+.suggest button { font: inherit; font-size: 14px; font-weight: 600; color: var(--accent); background: none; border: 1px solid var(--accent); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.suggest .same { color: var(--muted); font-size: 13px; }
+
+.weights { display: flex; flex-direction: column; gap: 10px; padding-block: 14px; }
+.weights svg { width: 100%; height: 70px; display: block; }
+.wlist { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wlist div { display: flex; justify-content: space-between; }
+.btn { font: inherit; font-weight: 600; background: var(--accent); color: var(--card); border: 0; border-radius: 12px; padding: 12px 16px; cursor: pointer; }
+.btn.ghost { background: var(--accent-soft); color: var(--accent); }
+.addw { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+details { background: var(--card); border-radius: 20px; padding: 16px 20px; border: 1px solid var(--line); }
+summary { cursor: pointer; font-weight: 600; }
+.calc { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; font-size: 15px; font-variant-numeric: tabular-nums; }
+.calc div { display: flex; justify-content: space-between; gap: 12px; }
+.calc div span:first-child { color: var(--muted); }
+.foot { font-size: 13px; color: var(--muted); text-align: center; text-wrap: balance; }
+@media (prefers-reduced-motion: no-preference) { .fill { transition: y .4s ease, height .4s ease; } }
+</style>
+
+<div class="app">
+  <header>
+    <div>
+      <div class="kid" id="kidName">Малыш</div>
+      <div class="age" id="ageText"></div>
+    </div>
+    <span class="sample">пример данных</span>
+  </header>
+
+  <section class="hero" aria-live="polite">
+    <div>
+      <div class="label">Смеси в сутки</div>
+      <div class="daily"><b id="dailyMl">—</b><span>мл</span></div>
+      <div class="kcal" id="kcalText"></div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:8px">За одно кормление</div>
+      <div class="bottles" id="bottles"></div>
+    </div>
+    <div class="notes" id="notes"></div>
+  </section>
+
+  <section class="panel" aria-label="Данные для расчёта">
+    <div class="row">
+      <label for="dob">Дата рождения<span class="hint">возраст считается сам</span></label>
+      <input type="date" id="dob">
+    </div>
+    <div class="row">
+      <label for="weight">Вес, г<span class="hint" id="weightDate"></span></label>
+      <input type="number" id="weight" inputmode="numeric" step="10">
+    </div>
+    <div class="row">
+      <label for="kcal">Ккал на 100 мл<span class="hint">готовой смеси, не порошка</span></label>
+      <input type="number" id="kcal" inputmode="decimal" step="1">
+    </div>
+    <div class="row">
+      <span class="rl">Смесь</span>
+      <select id="formula" aria-label="Смесь">
+        <option value="67">NAN Optipro 1 · 67</option>
+        <option value="custom">Своя смесь</option>
+      </select>
+    </div>
+    <div class="row">
+      <span class="rl">Кормлений в сутки<span class="hint">выбираете сами, можно диапазон</span></span>
+      <div class="range">
+        <div class="stepper"><button type="button" data-step="min,-1" aria-label="Меньше">−</button><output id="fmin"></output><button type="button" data-step="min,1" aria-label="Больше">+</button></div>
+        –
+        <div class="stepper"><button type="button" data-step="max,-1" aria-label="Меньше">−</button><output id="fmax"></output><button type="button" data-step="max,1" aria-label="Больше">+</button></div>
+      </div>
+      <div class="suggest" id="suggest"></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="История веса">
+    <div class="weights">
+      <div class="label">Вес по замерам</div>
+      <svg id="spark" viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="wlist" id="wlist"></div>
+      <div class="addw">
+        <input type="number" id="newWeight" placeholder="новый вес, г" inputmode="numeric" step="10" style="width:150px;text-align:left">
+        <button class="btn" type="button" id="addWeight">Записать вес</button>
+      </div>
+    </div>
+  </section>
+
+  <details>
+    <summary>Как посчитано</summary>
+    <div class="calc" id="calc"></div>
+  </details>
+
+  <p class="foot">Расчёт ориентировочный. Нормы и объёмы согласуйте с педиатром.</p>
+</div>
+
+<script>
+const RULES = { bands: [{ from: 0, to: 6, kcalPerKg: 115 }, { from: 6, to: Infinity, kcalPerKg: 110 }], decimals: 0, feed: [4, 12], bottleMax: 240,
+  // подсказка числа кормлений по возрасту; ориентир, проверить у педиатра
+  feedByAge: [{ from: 0, to: 1, min: 7, max: 8 }, { from: 1, to: 3, min: 6, max: 7 }, { from: 3, to: 6, min: 6, max: 7 }, { from: 6, to: 9, min: 5, max: 6 }, { from: 9, to: Infinity, min: 4, max: 5 }] };
+const TODAY = new Date('2026-10-02T12:00:00');
+const DEFAULT = {
+  name: 'Малыш', dob: '2026-06-18', kcal: 67, formula: '67', fmin: 6, fmax: 7,
+  weights: [{ d: '2026-07-20', g: 4300 }, { d: '2026-08-20', g: 5000 }, { d: '2026-09-28', g: 5700 }]
+};
+let s;
+try { s = JSON.parse(localStorage.getItem('formula-proto-v5')) || null; } catch (e) { s = null; }
+if (!s) s = structuredClone(DEFAULT);
+const save = () => { try { localStorage.setItem('formula-proto-v5', JSON.stringify(s)); } catch (e) {} };
+
+const $ = id => document.getElementById(id);
+const fmt = (n, d = 0) => n.toLocaleString('ru-RU', { minimumFractionDigits: d, maximumFractionDigits: d });
+const ml1 = n => Math.round(n);
+function ageMonths(dob) {
+  const b = new Date(dob + 'T12:00:00');
+  let m = (TODAY.getFullYear() - b.getFullYear()) * 12 + TODAY.getMonth() - b.getMonth();
+  if (TODAY.getDate() < b.getDate()) m--;
+  const anchor = new Date(b); anchor.setMonth(b.getMonth() + m);
+  return { months: m, days: Math.round((TODAY - anchor) / 864e5) };
+}
+const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? b : c; };
+
+function bottleSvg(ml) {
+  const top = 22, bottom = 88, h = bottom - top, frac = Math.min(ml / RULES.bottleMax, 1), fh = h * frac;
+  let ticks = '';
+  for (let v = 30; v < RULES.bottleMax; v += 30) {
+    const y = bottom - h * v / RULES.bottleMax;
+    ticks += `<line x1="10" x2="${v % 60 ? 15 : 19}" y1="${y}" y2="${y}" stroke="var(--muted)" stroke-width="1"/>`;
+  }
+  return `<svg viewBox="0 0 46 92" role="img" aria-label="${ml} мл в бутылочке на ${RULES.bottleMax} мл">
+    <rect x="17" y="2" width="12" height="8" rx="4" fill="var(--accent)"/>
+    <rect x="13" y="9" width="20" height="7" rx="2" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <rect class="fill" x="9" y="${bottom - fh}" width="28" height="${fh}" fill="var(--milk)"/>
+    <line x1="9" x2="37" y1="${bottom - fh}" y2="${bottom - fh}" stroke="var(--milk-edge)" stroke-width="1.5"/>
+    <rect x="8" y="16" width="30" height="74" rx="7" fill="none" stroke="var(--fg)" stroke-opacity=".55" stroke-width="1.5"/>
+    ${ticks}</svg>`;
+}
+
+function render() {
+  const w = s.weights[s.weights.length - 1];
+  const kg = s.weights.length ? w.g / 1000 : NaN;
+  const age = ageMonths(s.dob);
+  const band = RULES.bands.find(b => age.months >= b.from && age.months < b.to);
+  const errs = [], warns = [];
+
+  $('kidName').textContent = s.name;
+  $('ageText').textContent = age.months >= 0 ? `${age.months} ${plural(age.months, 'месяц', 'месяца', 'месяцев')} ${age.days} ${plural(age.days, 'день', 'дня', 'дней')} · норма ${band ? band.kcalPerKg : '—'} ккал/кг` : 'дата рождения в будущем';
+  $('dob').value = s.dob; $('weight').value = w ? w.g : ''; $('kcal').value = s.kcal;
+  $('formula').value = s.formula; $('fmin').textContent = s.fmin; $('fmax').textContent = s.fmax;
+  const hint = age.months >= 0 && RULES.feedByAge.find(b => age.months >= b.from && age.months < b.to);
+  if (hint) {
+    const txt = hint.min === hint.max ? `${hint.min}` : `${hint.min}–${hint.max}`;
+    const same = s.fmin === hint.min && s.fmax === hint.max;
+    $('suggest').innerHTML = `<span>В ${age.months} мес. обычно <b>${txt}</b> кормлений</span>` +
+      (same ? '<span class="same">совпадает с вашим выбором</span>' : '<button type="button" id="applyHint">Взять подсказку</button>');
+    const btn = $('applyHint');
+    if (btn) btn.onclick = () => { s.fmin = hint.min; s.fmax = hint.max; save(); render(); };
+  } else $('suggest').innerHTML = '';
+  $('kcal').disabled = s.formula !== 'custom';
+  if (w) {
+    const ago = Math.round((TODAY - new Date(w.d + 'T12:00:00')) / 864e5);
+    $('weightDate').textContent = `взвешен ${new Date(w.d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}`;
+    if (ago > 21) warns.push(`Последнему взвешиванию ${ago} ${plural(ago, 'день', 'дня', 'дней')}. Вес мог измениться, взвесьте малыша.`);
+  }
+
+  if (age.months < 0) errs.push('Дата рождения позже сегодняшнего дня.');
+  if (!(kg >= 1.5 && kg <= 20)) errs.push('Проверьте вес: укажите его в граммах, например 5700.');
+  if (s.kcal > 200) errs.push(`${s.kcal} ккал похоже на значение «на 100 г порошка». Нужно значение на 100 мл готовой смеси, обычно 60–80.`);
+  else if (!(s.kcal >= 55 && s.kcal <= 85)) errs.push('Ккал на 100 мл готовой смеси обычно от 60 до 80. Проверьте цифру на банке.');
+  if (age.months >= 6) warns.push('После 6 месяцев с прикормом смеси обычно нужно меньше. Расчёт прикорм не учитывает.');
+
+  const ok = !errs.length && band;
+  // методика пользователя: ккал целым числом (отбрасываем дробь), порции по 100 мл до десятых, ×100
+  const kcalDay = ok ? Math.floor(band.kcalPerKg * kg) : 0;
+  const portions = ok ? Math.round(kcalDay / s.kcal * 10) / 10 : 0;
+  const mlDay = Math.round(portions * 100);
+  $('dailyMl').textContent = ok ? fmt(ml1(mlDay)) : '—';
+  $('kcalText').textContent = ok ? `${fmt(kcalDay)} ккал · ${fmt(kg, 2)} кг × ${band.kcalPerKg} ккал` : 'Исправьте данные ниже';
+
+  const counts = []; for (let n = s.fmin; n <= s.fmax; n++) counts.push(n);
+  $('bottles').innerHTML = ok ? counts.map(n => {
+    const per = ml1(mlDay / n);
+    return `<div class="bottle">${bottleSvg(per)}<div><div class="ml">${fmt(per)} <small>мл</small></div><div class="n">${n} ${plural(n, 'кормление', 'кормления', 'кормлений')}</div></div></div>`;
+  }).join('') : '';
+  if (ok && counts.some(n => mlDay / n > RULES.bottleMax)) warns.push(`Порция больше бутылочки на ${RULES.bottleMax} мл. Возможно, стоит добавить кормление.`);
+
+  $('notes').innerHTML = errs.map(t => `<div class="note err">${t}</div>`).join('') + warns.map(t => `<div class="note warn">${t}</div>`).join('');
+
+  $('calc').innerHTML = ok ? [
+    ['Норма по возрасту', `${band.kcalPerKg} ккал/кг`],
+    ['Ккал в сутки', `${band.kcalPerKg} × ${fmt(kg, 2)} = ${fmt(kcalDay)}`],
+    ['Порций по 100 мл', `${fmt(kcalDay)} ÷ ${s.kcal} = ${fmt(portions, 1)}`],
+    ['Мл в сутки', `${fmt(portions, 1)} × 100 = ${fmt(mlDay)}`],
+    ...counts.map(n => [`На ${n} кормлений`, `${fmt(mlDay)} ÷ ${n} = ${fmt(ml1(mlDay / n))} мл`])
+  ].map(([a, b]) => `<div><span>${a}</span><span>${b}</span></div>`).join('') : '<div><span>Нет расчёта, пока есть ошибки</span></div>';
+
+  // спарклайн веса
+  const ws = s.weights.slice(-6);
+  if (ws.length > 1) {
+    const gs = ws.map(x => x.g), lo = Math.min(...gs) - 200, hi = Math.max(...gs) + 200;
+    const pts = ws.map((x, i) => [10 + i * 280 / (ws.length - 1), 62 - (x.g - lo) / (hi - lo) * 54]);
+    const line = pts.map(p => p.join(',')).join(' ');
+    const last = pts[pts.length - 1];
+    $('spark').innerHTML = `<polygon points="10,70 ${line} 290,70" fill="var(--accent-soft)"/>
+      <polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+      <circle cx="${last[0]}" cy="${last[1]}" r="4" fill="var(--accent)"/>`;
+  } else $('spark').innerHTML = '';
+  $('wlist').innerHTML = s.weights.slice(-3).reverse().map(x => `<div><span>${new Date(x.d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}</span><span>${fmt(x.g)} г</span></div>`).join('');
+}
+
+$('dob').addEventListener('change', e => { s.dob = e.target.value || s.dob; save(); render(); });
+$('weight').addEventListener('input', e => { const g = parseFloat(String(e.target.value).replace(',', '.')); if (s.weights.length) s.weights[s.weights.length - 1].g = g < 50 ? Math.round(g * 1000) : g; save(); render(); });
+$('kcal').addEventListener('input', e => { s.kcal = parseFloat(e.target.value); save(); render(); });
+$('formula').addEventListener('change', e => { s.formula = e.target.value; if (s.formula !== 'custom') s.kcal = +s.formula; save(); render(); });
+document.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => {
+  const [k, d] = b.dataset.step.split(','); const key = k === 'min' ? 'fmin' : 'fmax';
+  s[key] = Math.max(RULES.feed[0], Math.min(RULES.feed[1], s[key] + +d));
+  if (s.fmin > s.fmax) { if (key === 'fmin') s.fmax = s.fmin; else s.fmin = s.fmax; }
+  save(); render();
+}));
+$('addWeight').addEventListener('click', () => {
+  let g = parseFloat(String($('newWeight').value).replace(',', '.')); if (!g) return;
+  if (g < 50) g = Math.round(g * 1000);
+  s.weights.push({ d: TODAY.toISOString().slice(0, 10), g }); $('newWeight').value = ''; save(); render();
+});
+render();
+</script>
