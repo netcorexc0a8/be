@@ -9,6 +9,7 @@ import {
   kcalPerKg,
   parseWeightG,
   validate,
+  validateWeightEntry,
   type ValidationInput,
 } from './index';
 
@@ -198,5 +199,29 @@ describe('валидация', () => {
   it('порция больше бутылочки', () => {
     expect(bottleWarning([240, 200])).toBeNull();
     expect(bottleWarning([241])?.code).toBe('portion-exceeds-bottle');
+  });
+});
+
+describe('проверка нового замера веса', () => {
+  const dob = '2026-06-18';
+  const today = '2026-10-02';
+
+  it('нормальный замер проходит', () => {
+    expect(validateWeightEntry({ grams: 5800, date: today, dob, today })).toBeNull();
+    expect(validateWeightEntry({ grams: 3500, date: dob, dob, today })).toBeNull();
+  });
+
+  it.each([NaN, 1499, 20001])('вес %s г отклоняется', (grams) => {
+    const issue = validateWeightEntry({ grams, date: today, dob, today });
+    expect(issue?.code).toBe('weight-out-of-range');
+    expect(issue?.message).toContain('от 1,5 до 20 кг');
+  });
+
+  it('дата в будущем отклоняется', () => {
+    expect(validateWeightEntry({ grams: 5800, date: '2026-10-03', dob, today })?.code).toBe('weight-date-in-future');
+  });
+
+  it('дата раньше рождения отклоняется', () => {
+    expect(validateWeightEntry({ grams: 3500, date: '2026-06-17', dob, today })?.code).toBe('weight-date-before-birth');
   });
 });

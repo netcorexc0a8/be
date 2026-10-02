@@ -69,12 +69,15 @@
   <section class="panel" aria-label="История веса">
     <div class="weights">
       <div class="label">Вес по замерам</div>
-      <svg id="spark" viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <svg id="spark" viewBox="0 0 300 110" role="img" aria-label="График веса"></svg>
       <div class="wlist" id="wlist"></div>
+      <button type="button" class="more" id="showAll" hidden></button>
       <div class="addw">
-        <input type="text" id="newWeight" placeholder="новый вес" inputmode="decimal" autocomplete="off">
+        <input type="text" id="newWeight" placeholder="вес, г или кг" inputmode="decimal" autocomplete="off" aria-label="Новый вес">
+        <input type="date" id="newWeightDate" aria-label="Дата замера">
         <button class="btn" type="button" id="addWeight">Записать вес</button>
       </div>
+      <div class="note err" id="weightError" role="alert" hidden></div>
     </div>
   </section>
 

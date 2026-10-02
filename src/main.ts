@@ -9,9 +9,10 @@ import '@fontsource/unbounded/cyrillic-700.css';
 import '@fontsource/unbounded/latin-500.css';
 import '@fontsource/unbounded/latin-700.css';
 import './styles.css';
-import { parseWeightG, RULES } from './core';
+import { parseWeightG, RULES, validateWeightEntry } from './core';
 import {
   addWeight,
+  removeWeight,
   FORMULAS,
   latestWeight,
   loadState,
@@ -19,7 +20,7 @@ import {
   saveState,
   type AppState,
 } from './app/state';
-import { buildView, formatDayMonth, formatInt, plural } from './app/view';
+import { buildView, CHART, formatDayMonth, formatInt, plural, type WeightChart } from './app/view';
 
 const storage = (() => {
   try {
@@ -67,19 +68,25 @@ function bottleSvg(ml: number): string {
     ${ticks}</svg>`;
 }
 
-function sparkline(): string {
-  const ws = state.weights.slice(-6);
-  if (ws.length < 2) return '';
-  const gs = ws.map((w) => w.grams);
-  const lo = Math.min(...gs) - 200;
-  const hi = Math.max(...gs) + 200;
-  const pts = ws.map((w, i) => [10 + (i * 280) / (ws.length - 1), 62 - ((w.grams - lo) / (hi - lo)) * 54] as const);
-  const line = pts.map((p) => p.join(',')).join(' ');
-  const last = pts[pts.length - 1]!;
-  return `<polygon points="10,70 ${line} 290,70" fill="var(--accent-soft)"/>
-    <polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/>
-    <circle cx="${last[0]}" cy="${last[1]}" r="4" fill="var(--accent)"/>`;
+function chartSvg(chart: WeightChart | null): string {
+  if (!chart) return '';
+  const line = chart.points.map((p) => `${p.x},${p.y}`).join(' ');
+  const first = chart.points[0]!;
+  const last = chart.points[chart.points.length - 1]!;
+  const base = CHART.height - CHART.bottom;
+  return `<line x1="${CHART.left}" x2="${CHART.width - CHART.right}" y1="${base}" y2="${base}" stroke="var(--line)" stroke-width="1"/>
+    <polygon points="${first.x},${base} ${line} ${last.x},${base}" fill="var(--accent-soft)"/>
+    <polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
+    ${chart.points.map((p) => `<circle cx="${p.x}" cy="${p.y}" r="2.5" fill="var(--accent)"/>`).join('')}
+    <circle cx="${last.x}" cy="${last.y}" r="4.5" fill="var(--accent)"/>
+    <text class="val" x="${last.x + 8}" y="${last.y + 4}">${chart.lastValue}</text>
+    <text x="${CHART.left}" y="${CHART.height - 4}">${chart.firstLabel}</text>
+    <text x="${CHART.width - CHART.right}" y="${CHART.height - 4}" text-anchor="end">${chart.lastLabel}</text>`;
 }
+
+const HISTORY_COLLAPSED = 4;
+let showAllWeights = false;
+let confirmDelete: string | null = null;
 
 /** Обновляет значение поля, только если пользователь сейчас его не редактирует. */
 function setField(input: HTMLInputElement | HTMLSelectElement, value: string): void {
@@ -138,12 +145,31 @@ function render(): void {
     ? view.breakdown.map(([a, b]) => `<div><span>${a}</span><span>${b}</span></div>`).join('')
     : '<div><span>Нет расчёта, пока есть ошибки</span></div>';
 
-  const spark = sparkline();
+  const spark = chartSvg(view.chart);
   el('spark').innerHTML = spark;
   el('spark').toggleAttribute('hidden', spark === '');
-  el('wlist').innerHTML = view.recentWeights
-    .map((w) => `<div><span>${formatDayMonth(w.date)}</span><span>${formatInt(w.grams)} г</span></div>`)
+  const rows = showAllWeights ? view.history : view.history.slice(0, HISTORY_COLLAPSED);
+  el('wlist').innerHTML = rows
+    .map(
+      (w) => `<div class="wrow">
+        <span class="wdate">${formatDayMonth(w.date)}</span>
+        <span class="wg">${formatInt(w.grams)} г</span>
+        ${
+          w.canDelete
+            ? `<button type="button" class="del${confirmDelete === w.date ? ' confirm' : ''}" data-delete="${w.date}" aria-label="Удалить замер за ${formatDayMonth(w.date)}">${confirmDelete === w.date ? 'Удалить?' : '×'}</button>`
+            : ''
+        }
+        ${w.change ? `<span class="wchange">${w.change}</span>` : ''}
+      </div>`,
+    )
     .join('');
+  const more = el<HTMLButtonElement>('showAll');
+  more.hidden = view.history.length <= HISTORY_COLLAPSED;
+  more.textContent = showAllWeights ? 'Свернуть' : `Показать все замеры (${view.history.length})`;
+  const newDate = el<HTMLInputElement>('newWeightDate');
+  newDate.max = today();
+  newDate.min = state.dob;
+  if (!newDate.value) newDate.value = today();
 }
 
 // --- события ---
@@ -205,13 +231,46 @@ el('suggest').addEventListener('click', (e) => {
 
 el('addWeight').addEventListener('click', () => {
   const input = el<HTMLInputElement>('newWeight');
+  const dateInput = el<HTMLInputElement>('newWeightDate');
+  const errorBox = el('weightError');
   const grams = parseWeightG(input.value);
-  if (Number.isNaN(grams)) {
+  const date = dateInput.value || today();
+  const issue = validateWeightEntry({ grams, date, dob: state.dob, today: today() });
+  if (issue) {
+    errorBox.textContent = issue.message;
+    errorBox.hidden = false;
     input.focus();
     return;
   }
+  errorBox.hidden = true;
   input.value = '';
-  update(addWeight(state, { date: today(), grams }));
+  dateInput.value = today();
+  update(addWeight(state, { date, grams }));
+});
+
+el('wlist').addEventListener('click', (e) => {
+  const button = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-delete]');
+  if (!button) return;
+  const date = button.dataset.delete!;
+  if (confirmDelete === date) {
+    confirmDelete = null;
+    update(removeWeight(state, date));
+  } else {
+    confirmDelete = date;
+    render();
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (confirmDelete && !(e.target as HTMLElement).closest('[data-delete]')) {
+    confirmDelete = null;
+    render();
+  }
+});
+
+el('showAll').addEventListener('click', () => {
+  showAllWeights = !showAllWeights;
+  render();
 });
 
 render();
