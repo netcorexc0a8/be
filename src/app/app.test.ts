@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   addWeight,
+  backupFileName,
+  exportBackup,
+  importBackup,
   exampleState,
   loadState,
   localToday,
@@ -168,5 +171,24 @@ describe('экран', () => {
     ]);
     expect(chart?.firstLabel).toBe('1 сентября');
     expect(chart?.lastValue.replace(/\s/g, ' ')).toBe('5 600 г');
+  });
+});
+
+describe('резервная копия', () => {
+  it('сохраняет и восстанавливает данные', () => {
+    const s: AppState = { ...exampleState(TODAY), name: 'Аня', isExample: false };
+    const file = exportBackup(s, new Date('2026-10-02T10:00:00Z'));
+    expect(JSON.parse(file)).toMatchObject({ app: 'formula-calculator', version: 1, exportedAt: '2026-10-02T10:00:00.000Z' });
+    expect(importBackup(file)).toEqual(s);
+  });
+
+  it('чужой или повреждённый файл не принимается', () => {
+    expect(importBackup('не json')).toBeNull();
+    expect(importBackup(JSON.stringify({ app: 'other', version: 1, state: exampleState(TODAY) }))).toBeNull();
+    expect(importBackup(JSON.stringify({ app: 'formula-calculator', version: 1, state: { name: 'Аня' } }))).toBeNull();
+  });
+
+  it('имя файла с датой', () => {
+    expect(backupFileName('2026-10-02')).toBe('smes-2026-10-02.json');
   });
 });

@@ -130,3 +130,28 @@ export function localToday(now: Date = new Date()): string {
   const d = String(now.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
+
+const BACKUP_APP = 'formula-calculator';
+const BACKUP_VERSION = 1;
+
+/** Содержимое файла резервной копии. */
+export function exportBackup(state: AppState, now: Date = new Date()): string {
+  return JSON.stringify(
+    { app: BACKUP_APP, version: BACKUP_VERSION, exportedAt: now.toISOString(), state },
+    null,
+    2,
+  );
+}
+
+/** Состояние из файла резервной копии или null, если файл не подходит. */
+export function importBackup(text: string): AppState | null {
+  try {
+    const data = JSON.parse(text) as { app?: unknown; version?: unknown; state?: unknown };
+    if (data.app !== BACKUP_APP || data.version !== BACKUP_VERSION) return null;
+    return parseState(JSON.stringify(data.state));
+  } catch {
+    return null;
+  }
+}
+
+export const backupFileName = (today: string): string => `smes-${today}.json`;

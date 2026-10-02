@@ -12,6 +12,9 @@ import './styles.css';
 import { parseWeightG, RULES, validateWeightEntry } from './core';
 import {
   addWeight,
+  backupFileName,
+  exportBackup,
+  importBackup,
   removeWeight,
   FORMULAS,
   latestWeight,
@@ -271,6 +274,73 @@ document.addEventListener('click', (e) => {
 el('showAll').addEventListener('click', () => {
   showAllWeights = !showAllWeights;
   render();
+});
+
+// --- резервная копия ---
+
+let pendingImport: AppState | null = null;
+
+function showBackupStatus(text: string): void {
+  const box = el('backupStatus');
+  box.textContent = text;
+  box.hidden = false;
+}
+
+el('exportData').addEventListener('click', async () => {
+  const name = backupFileName(today());
+  const file = new File([exportBackup(state)], name, { type: 'application/json' });
+  // На телефоне удобнее системное меню «Поделиться»: «Сохранить в Файлы», мессенджер, почта.
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'Сколько смеси: резервная копия' });
+      showBackupStatus('Копия сохранена.');
+      return;
+    } catch (e) {
+      if ((e as DOMException).name === 'AbortError') return;
+    }
+  }
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showBackupStatus(`Файл ${name} сохранён в загрузки.`);
+});
+
+el('importData').addEventListener('click', () => el<HTMLInputElement>('importFile').click());
+
+el<HTMLInputElement>('importFile').addEventListener('change', async (e) => {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) return;
+  const restored = importBackup(await file.text());
+  if (!restored) {
+    pendingImport = null;
+    el('importConfirm').hidden = true;
+    showBackupStatus('Этот файл не похож на резервную копию приложения. Выберите файл smes-….json.');
+    return;
+  }
+  pendingImport = restored;
+  const last = restored.weights[restored.weights.length - 1]!;
+  el('importConfirmText').textContent =
+    `В файле: ${restored.name}, ${restored.weights.length} ${plural(restored.weights.length, 'замер', 'замера', 'замеров')} веса, последний ${formatInt(last.grams)} г. Заменить текущие данные?`;
+  el('importConfirm').hidden = false;
+  el('backupStatus').hidden = true;
+});
+
+el('importYes').addEventListener('click', () => {
+  if (!pendingImport) return;
+  update(pendingImport);
+  pendingImport = null;
+  el('importConfirm').hidden = true;
+  showBackupStatus('Данные загружены из файла.');
+});
+
+el('importNo').addEventListener('click', () => {
+  pendingImport = null;
+  el('importConfirm').hidden = true;
 });
 
 render();

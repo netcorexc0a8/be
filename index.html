@@ -81,6 +81,26 @@
     </div>
   </section>
 
+  <section class="panel" aria-label="Резервная копия">
+    <div class="backup">
+      <div class="label">Резервная копия</div>
+      <p class="hint-text">Данные хранятся только на этом телефоне. Сохраните копию в файл, чтобы не потерять их при смене телефона.</p>
+      <div class="addw">
+        <button class="btn" type="button" id="exportData">Сохранить в файл</button>
+        <button class="btn ghost" type="button" id="importData">Загрузить из файла</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+      <div class="note warn" id="importConfirm" hidden>
+        <span id="importConfirmText"></span>
+        <div class="addw confirm-row">
+          <button class="btn" type="button" id="importYes">Заменить</button>
+          <button class="btn ghost" type="button" id="importNo">Отмена</button>
+        </div>
+      </div>
+      <div class="note" id="backupStatus" role="status" hidden></div>
+    </div>
+  </section>
+
   <details>
     <summary>Как посчитано</summary>
     <div class="calc" id="calc"></div>
