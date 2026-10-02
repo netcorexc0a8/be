@@ -41,11 +41,29 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Страница: сначала сеть (чтобы сразу видеть новую версию), без сети или при медленной сети — сохранённая копия.
+async function freshPage(request) {
+  const cache = await caches.open(CACHE);
+  const network = fetch(request, { cache: 'no-cache' }).then((response) => {
+    if (response.ok) cache.put('index.html', response.clone());
+    return response;
+  });
+  network.catch(() => {});
+  const timeout = new Promise((resolve) => setTimeout(resolve, 3000));
+  try {
+    const response = await Promise.race([network, timeout]);
+    if (response) return response;
+  } catch {
+    // нет сети
+  }
+  return (await cache.match('index.html')) || network;
+}
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
   if (request.mode === 'navigate') {
-    event.respondWith(caches.match('index.html').then((cached) => cached || fetch(request)));
+    event.respondWith(freshPage(request));
     return;
   }
   event.respondWith(caches.match(request, { ignoreSearch: true }).then((cached) => cached || fetch(request)));

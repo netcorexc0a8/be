@@ -219,8 +219,16 @@ render();
 // Сохраняем приложение на телефоне для работы без интернета (только в собранной версии).
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {
-      // без service worker приложение просто работает онлайн
-    });
+    navigator.serviceWorker
+      .register('./sw.js', { updateViaCache: 'none' })
+      .then((registration) => {
+        // приложение на телефоне долго живёт в фоне: проверяем обновление при каждом возвращении
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') registration.update().catch(() => {});
+        });
+      })
+      .catch(() => {
+        // без service worker приложение просто работает онлайн
+      });
   });
 }
