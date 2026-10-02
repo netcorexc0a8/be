@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2E6E8E">
+  <title>Сколько смеси</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;700&display=swap">
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <input class="kid" id="kidName" aria-label="Имя ребёнка" autocomplete="off">
+      <div class="age" id="ageText"></div>
+    </div>
+    <span class="sample" id="sample" hidden>пример, замените своими данными</span>
+  </header>
+
+  <section class="hero" aria-live="polite">
+    <div>
+      <div class="label">Смеси в сутки</div>
+      <div class="daily"><b id="dailyMl">—</b><span>мл</span></div>
+      <div class="kcal" id="kcalText"></div>
+    </div>
+    <div>
+      <div class="label per-label">За одно кормление</div>
+      <div class="bottles" id="bottles"></div>
+    </div>
+    <div class="notes" id="notes"></div>
+  </section>
+
+  <section class="panel" aria-label="Данные для расчёта">
+    <div class="row">
+      <label for="dob">Дата рождения<span class="hint">возраст считается сам</span></label>
+      <input type="date" id="dob">
+    </div>
+    <div class="row">
+      <label for="weight">Вес, г или кг<span class="hint" id="weightDate"></span></label>
+      <input type="text" id="weight" inputmode="decimal" autocomplete="off">
+    </div>
+    <div class="row">
+      <label for="kcal">Ккал на 100 мл<span class="hint">готовой смеси, не порошка</span></label>
+      <input type="number" id="kcal" inputmode="decimal" step="1">
+    </div>
+    <div class="row">
+      <span class="rl">Смесь</span>
+      <select id="formula" aria-label="Смесь">
+        <option value="nan-optipro-1">NAN Optipro 1 · 67</option>
+        <option value="custom">Своя смесь</option>
+      </select>
+    </div>
+    <div class="row">
+      <span class="rl">Кормлений в сутки<span class="hint">выбираете сами, можно диапазон</span></span>
+      <div class="range">
+        <div class="stepper"><button type="button" data-step="min,-1" aria-label="Меньше">−</button><output id="fmin"></output><button type="button" data-step="min,1" aria-label="Больше">+</button></div>
+        –
+        <div class="stepper"><button type="button" data-step="max,-1" aria-label="Меньше">−</button><output id="fmax"></output><button type="button" data-step="max,1" aria-label="Больше">+</button></div>
+      </div>
+      <div class="suggest" id="suggest"></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="История веса">
+    <div class="weights">
+      <div class="label">Вес по замерам</div>
+      <svg id="spark" viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="wlist" id="wlist"></div>
+      <div class="addw">
+        <input type="text" id="newWeight" placeholder="новый вес" inputmode="decimal" autocomplete="off">
+        <button class="btn" type="button" id="addWeight">Записать вес</button>
+      </div>
+    </div>
+  </section>
+
+  <details>
+    <summary>Как посчитано</summary>
+    <div class="calc" id="calc"></div>
+  </details>
+
+  <p class="foot">Расчёт ориентировочный. Нормы и объёмы согласуйте с педиатром.</p>
+</div>
+
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
