@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addCustomFormula,
   addWeight,
+  currentFormula,
+  removeCustomFormula,
+  selectFormula,
+  setFormulaKcal,
   backupFileName,
   exportBackup,
   importBackup,
@@ -12,6 +17,7 @@ import {
   saveState,
   STORAGE_KEY,
   type AppState,
+  validateFormulaInput,
 } from './state';
 import { buildView, CHART, formatScoops, scoopDiff, weightChart } from './view';
 
@@ -125,8 +131,15 @@ describe('экран', () => {
     expect(scoopDiff(165, 163)).toBe('на 2 мл больше расчёта');
   });
 
-  it('для своей смеси ложки не показываются', () => {
-    expect(buildView({ ...example, formula: 'custom' }, TODAY).scoops).toBeNull();
+  it('своя смесь: ложки по её пропорции, без пропорции ложки не показываются', () => {
+    const withScoop = addCustomFormula(example, { name: 'Нутрилон 1', kcalPer100ml: 66, waterMlPerScoop: 30 }, 'f1');
+    const v = buildView(withScoop, TODAY);
+    expect(v.formulaName).toBe('Нутрилон 1');
+    expect(v.result?.kcalDay).toBe(655);
+    expect(v.result?.portions).toBe(9.9); // 655 ÷ 66 = 9,92
+    expect(v.scoops?.waterMlPerScoop).toBe(30);
+    const noScoop = addCustomFormula(example, { name: 'Другая', kcalPer100ml: 67, waterMlPerScoop: null }, 'f2');
+    expect(buildView(noScoop, TODAY).scoops).toBeNull();
   });
 
   it('при ошибке ложки не показываются', () => {
@@ -218,5 +231,80 @@ describe('резервная копия', () => {
 
   it('имя файла с датой', () => {
     expect(backupFileName('2026-10-02')).toBe('smes-2026-10-02.json');
+  });
+});
+
+describe('смеси', () => {
+  const base = exampleState(TODAY);
+
+  it('по умолчанию NAN Optipro 1, 67 ккал, 30 мл воды на ложку', () => {
+    expect(currentFormula(base)).toEqual({ id: 'nan-optipro-1', name: 'NAN Optipro 1', kcalPer100ml: 67, waterMlPerScoop: 30, custom: false });
+  });
+
+  it('добавленная смесь сохраняется в списке и сразу выбирается', () => {
+    const s = addCustomFormula(base, { name: 'Нутрилон 1', kcalPer100ml: 66, waterMlPerScoop: 30 }, 'f1');
+    expect(s.customFormulas).toEqual([{ id: 'f1', name: 'Нутрилон 1', kcalPer100ml: 66, waterMlPerScoop: 30 }]);
+    expect(s.formula).toBe('f1');
+    expect(s.kcalPer100ml).toBe(66);
+    expect(s.isExample).toBe(false);
+  });
+
+  it('переключение между смесями меняет калорийность', () => {
+    let s = addCustomFormula(base, { name: 'Нутрилон 1', kcalPer100ml: 66, waterMlPerScoop: 30 }, 'f1');
+    s = selectFormula(s, 'nan-optipro-1');
+    expect(s.kcalPer100ml).toBe(67);
+    s = selectFormula(s, 'f1');
+    expect(s.kcalPer100ml).toBe(66);
+    expect(selectFormula(s, 'нет такой')).toBe(s);
+  });
+
+  it('калорийность своей смеси можно поправить, у NAN нельзя', () => {
+    const s = addCustomFormula(base, { name: 'Нутрилон 1', kcalPer100ml: 66, waterMlPerScoop: null }, 'f1');
+    const fixed = setFormulaKcal(s, 68);
+    expect(fixed.kcalPer100ml).toBe(68);
+    expect(fixed.customFormulas[0]?.kcalPer100ml).toBe(68);
+    expect(setFormulaKcal(base, 70)).toBe(base);
+  });
+
+  it('удаление выбранной смеси возвращает NAN Optipro 1', () => {
+    const s = removeCustomFormula(addCustomFormula(base, { name: 'Нутрилон 1', kcalPer100ml: 66, waterMlPerScoop: null }, 'f1'), 'f1');
+    expect(s.customFormulas).toEqual([]);
+    expect(s.formula).toBe('nan-optipro-1');
+    expect(s.kcalPer100ml).toBe(67);
+  });
+
+  it('смеси сохраняются и загружаются', () => {
+    const storage = memoryStorage();
+    const s = addCustomFormula(base, { name: 'Нутрилон 1', kcalPer100ml: 66, waterMlPerScoop: 30 }, 'f1');
+    saveState(storage, s);
+    expect(loadState(storage, TODAY)).toEqual(s);
+  });
+
+  it('старая «своя смесь» без списка переносится в список', () => {
+    const old = { ...base, formula: 'custom', kcalPer100ml: 70, isExample: false } as Record<string, unknown>;
+    delete old.customFormulas;
+    const s = parseState(JSON.stringify(old));
+    expect(s?.formula).toBe('custom');
+    expect(s?.kcalPer100ml).toBe(70);
+    expect(s?.customFormulas).toEqual([{ id: 'custom', name: 'Своя смесь', kcalPer100ml: 70, waterMlPerScoop: null }]);
+  });
+
+  it('выбрана смесь, которой нет в списке: данные не принимаются', () => {
+    expect(parseState(JSON.stringify({ ...base, formula: 'f9' }))).toBeNull();
+  });
+
+  it('проверка ввода новой смеси', () => {
+    expect(validateFormulaInput({ name: ' Нутрилон 1 ', kcal: '66', water: '30' })).toEqual({
+      ok: true,
+      value: { name: 'Нутрилон 1', kcalPer100ml: 66, waterMlPerScoop: 30 },
+    });
+    expect(validateFormulaInput({ name: 'Смесь', kcal: '67,5', water: '' })).toEqual({
+      ok: true,
+      value: { name: 'Смесь', kcalPer100ml: 67.5, waterMlPerScoop: null },
+    });
+    expect(validateFormulaInput({ name: '', kcal: '66', water: '' })).toEqual({ ok: false, error: 'Укажите название смеси.' });
+    expect(validateFormulaInput({ name: 'Смесь', kcal: 'абв', water: '' })).toEqual({ ok: false, error: 'Укажите ккал на 100 мл готовой смеси.' });
+    expect(validateFormulaInput({ name: 'Смесь', kcal: '66', water: '0' })).toEqual({ ok: false, error: 'Мл воды на 1 ложку: укажите число с банки или оставьте пустым.' });
+    expect(validateFormulaInput({ name: 'NAN Optipro 1', kcal: '66', water: '' })).toEqual({ ok: false, error: 'Смесь с таким названием уже есть.' });
   });
 });
