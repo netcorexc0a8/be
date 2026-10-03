@@ -8,11 +8,13 @@ import {
   feedingHint,
   feedingRange,
   kcalPerKg,
+  scoopOptions,
   validate,
   type CalcResult,
+  type ScoopOption,
   type Issue,
 } from '../core';
-import { latestWeight, type AppState, type WeightEntry } from './state';
+import { FORMULAS, latestWeight, type AppState, type WeightEntry } from './state';
 
 export interface ScreenView {
   ageMonths: number;
@@ -25,6 +27,14 @@ export interface ScreenView {
   breakdown: [string, string][];
   history: HistoryRow[];
   chart: WeightChart | null;
+  scoops: ScoopsView | null;
+}
+
+/** Как развести: варианты в мерных ложках по таблице на банке. */
+export interface ScoopsView {
+  waterMlPerScoop: number;
+  rows: { feedings: number; ml: number; options: ScoopOption[] }[];
+  perDay: number;
 }
 
 export interface HistoryRow extends WeightEntry {
@@ -124,6 +134,16 @@ export function buildView(state: AppState, today: string): ScreenView {
       ]
     : [];
 
+  const formula = state.formula === 'custom' ? null : FORMULAS[state.formula];
+  const scoops: ScoopsView | null =
+    r && formula
+      ? {
+          waterMlPerScoop: formula.waterMlPerScoop,
+          rows: r.perFeeding.map((p) => ({ ...p, options: scoopOptions(p.ml, formula.waterMlPerScoop) })),
+          perDay: Math.round(r.mlDay / formula.waterMlPerScoop),
+        }
+      : null;
+
   return {
     ageMonths: months,
     ageText:
@@ -138,6 +158,7 @@ export function buildView(state: AppState, today: string): ScreenView {
     breakdown,
     history: weightHistory(state.weights),
     chart: weightChart(state.weights),
+    scoops,
   };
 }
 

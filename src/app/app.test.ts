@@ -105,6 +105,24 @@ describe('экран', () => {
     expect(v.ageText).toBe('3 месяца 0 дней · норма 115 ккал/кг');
   });
 
+  it('как развести: варианты в ложках для NAN', () => {
+    const v = buildView(example, TODAY);
+    expect(v.scoops?.rows).toEqual([
+      { feedings: 6, ml: 163, options: [{ waterMl: 150, scoops: 5 }, { waterMl: 180, scoops: 6 }] },
+      { feedings: 7, ml: 140, options: [{ waterMl: 120, scoops: 4 }, { waterMl: 150, scoops: 5 }] },
+    ]);
+    expect(v.scoops?.waterMlPerScoop).toBe(30);
+    expect(v.scoops?.perDay).toBe(33); // 980 ÷ 30 = 32,7
+  });
+
+  it('для своей смеси ложки не показываются', () => {
+    expect(buildView({ ...example, formula: 'custom' }, TODAY).scoops).toBeNull();
+  });
+
+  it('при ошибке ложки не показываются', () => {
+    expect(buildView({ ...example, kcalPer100ml: 500 }, TODAY).scoops).toBeNull();
+  });
+
   it('показывает шаги расчёта как в методике', () => {
     const rows = Object.fromEntries(buildView(example, TODAY).breakdown);
     expect(rows['Ккал в сутки']).toBe('115 × 5,7 = 655');

@@ -53,6 +53,13 @@ header { display: flex; justify-content: space-between; align-items: baseline; g
 .bottle .ml small { font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--muted); }
 .bottle .n { font-size: 13px; color: var(--muted); }
 
+.scoops { display: flex; flex-direction: column; gap: 8px; }
+.scoop-row { background: var(--bg); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.scoop-row .n { font-size: 13px; color: var(--muted); }
+.scoop-opt { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; }
+.scoop-opt b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.scoop-opt span { font-size: 13px; color: var(--muted); }
+.scoop-foot { font-size: 13px; color: var(--muted); }
 .notes { display: flex; flex-direction: column; gap: 8px; }
 .note { border-radius: 12px; padding: 10px 12px; font-size: 14px; }
 .note.warn { background: var(--warn-bg); color: var(--warn-fg); }
