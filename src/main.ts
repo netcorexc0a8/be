@@ -23,7 +23,7 @@ import {
   saveState,
   type AppState,
 } from './app/state';
-import { buildView, CHART, formatDayMonth, formatInt, plural, type WeightChart } from './app/view';
+import { buildView, CHART, formatDayMonth, formatInt, formatScoops, plural, scoopDiff, type WeightChart } from './app/view';
 
 const storage = (() => {
   try {
@@ -138,8 +138,8 @@ function render(): void {
             <div class="n">${row.feedings} ${plural(row.feedings, 'кормление', 'кормления', 'кормлений')} · по расчёту ${formatInt(row.ml)} мл</div>
             ${row.options
               .map(
-                (o) => `<div class="scoop-opt"><b>${formatInt(o.waterMl)} мл воды + ${o.scoops} ${plural(o.scoops, 'ложка', 'ложки', 'ложек')}</b>${
-                  row.options.length > 1 ? `<span>${o.waterMl < row.ml ? 'чуть меньше' : 'чуть больше'} расчёта</span>` : ''
+                (o) => `<div class="scoop-opt"><b>${formatInt(o.waterMl)} мл воды + ${formatScoops(o.scoops)}</b>${
+                  o.waterMl !== row.ml ? `<span>${scoopDiff(o.waterMl, row.ml)}</span>` : ''
                 }</div>`,
               )
               .join('')}

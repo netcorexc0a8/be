@@ -13,7 +13,7 @@ import {
   STORAGE_KEY,
   type AppState,
 } from './state';
-import { buildView, CHART, weightChart } from './view';
+import { buildView, CHART, formatScoops, scoopDiff, weightChart } from './view';
 
 const TODAY = '2026-10-02';
 
@@ -108,11 +108,21 @@ describe('экран', () => {
   it('как развести: варианты в ложках для NAN', () => {
     const v = buildView(example, TODAY);
     expect(v.scoops?.rows).toEqual([
-      { feedings: 6, ml: 163, options: [{ waterMl: 150, scoops: 5 }, { waterMl: 180, scoops: 6 }] },
-      { feedings: 7, ml: 140, options: [{ waterMl: 120, scoops: 4 }, { waterMl: 150, scoops: 5 }] },
+      { feedings: 6, ml: 163, options: [{ waterMl: 150, scoops: 5 }, { waterMl: 165, scoops: 5.5 }] },
+      { feedings: 7, ml: 140, options: [{ waterMl: 135, scoops: 4.5 }, { waterMl: 150, scoops: 5 }] },
     ]);
     expect(v.scoops?.waterMlPerScoop).toBe(30);
     expect(v.scoops?.perDay).toBe(33); // 980 ÷ 30 = 32,7
+  });
+
+  it('подписи ложек и разницы с расчётом', () => {
+    expect(formatScoops(5)).toBe('5 ложек');
+    expect(formatScoops(5.5)).toBe('5,5 ложки');
+    expect(formatScoops(4)).toBe('4 ложки');
+    expect(formatScoops(1)).toBe('1 ложка');
+    expect(formatScoops(0.5)).toBe('0,5 ложки');
+    expect(scoopDiff(150, 163)).toBe('на 13 мл меньше расчёта');
+    expect(scoopDiff(165, 163)).toBe('на 2 мл больше расчёта');
   });
 
   it('для своей смеси ложки не показываются', () => {

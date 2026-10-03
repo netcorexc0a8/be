@@ -67,6 +67,18 @@ export function plural(n: number, one: string, few: string, many: string): strin
   return many;
 }
 
+/** 5 → «5 ложек», 5,5 → «5,5 ложки», 0,5 → «0,5 ложки». */
+export function formatScoops(scoops: number): string {
+  if (Number.isInteger(scoops)) return `${scoops} ${plural(scoops, 'ложка', 'ложки', 'ложек')}`;
+  return `${nf1.format(scoops)} ложки`;
+}
+
+/** Насколько вариант разведения отличается от расчёта: «на 2 мл больше расчёта». */
+export function scoopDiff(waterMl: number, ml: number): string {
+  const d = waterMl - ml;
+  return `на ${nf0.format(Math.abs(d))} мл ${d < 0 ? 'меньше' : 'больше'} расчёта`;
+}
+
 export function formatDayMonth(date: string): string {
   const [y, m, d] = date.split('-').map(Number) as [number, number, number];
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('ru-RU', {
