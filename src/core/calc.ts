@@ -41,14 +41,14 @@ export interface ScoopOption {
 }
 
 /**
- * Ближайшие варианты разведения по таблице на банке: целое число ложек
+ * Ближайшие варианты разведения по таблице на банке с шагом в полложки
  * и вода к ним. Объём из расчёта считается объёмом воды. Если объём
- * между двумя строками — оба варианта (меньше и больше), выбирает пользователь.
+ * между двумя шагами — оба варианта (меньше и больше), выбирает пользователь.
  */
-export function scoopOptions(ml: number, waterMlPerScoop: number): ScoopOption[] {
-  const exact = ml / waterMlPerScoop;
+export function scoopOptions(ml: number, waterMlPerScoop: number, step = 0.5): ScoopOption[] {
+  const exact = ml / waterMlPerScoop / step;
   const counts = [...new Set([Math.floor(exact), Math.ceil(exact)])].filter((n) => n >= 1);
-  return counts.map((scoops) => ({ waterMl: scoops * waterMlPerScoop, scoops }));
+  return counts.map((n) => ({ waterMl: n * step * waterMlPerScoop, scoops: n * step }));
 }
 
 /** Подсказка числа кормлений по возрасту или null, если возраст вне таблицы. */

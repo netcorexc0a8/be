@@ -228,25 +228,26 @@ describe('проверка нового замера веса', () => {
 });
 
 describe('мерные ложки', () => {
-  it('163 мл: два ближайших варианта по таблице банки (30 мл воды на ложку)', () => {
+  it('163 мл: два ближайших варианта с шагом в полложки (30 мл воды на ложку)', () => {
     expect(scoopOptions(163, 30)).toEqual([
       { waterMl: 150, scoops: 5 },
-      { waterMl: 180, scoops: 6 },
+      { waterMl: 165, scoops: 5.5 },
     ]);
   });
 
-  it('140 мл: 120 мл и 4 ложки или 150 мл и 5 ложек', () => {
+  it('140 мл: 135 мл и 4½ ложки или 150 мл и 5 ложек', () => {
     expect(scoopOptions(140, 30)).toEqual([
-      { waterMl: 120, scoops: 4 },
+      { waterMl: 135, scoops: 4.5 },
       { waterMl: 150, scoops: 5 },
     ]);
   });
 
   it('ровно по таблице: один вариант', () => {
     expect(scoopOptions(150, 30)).toEqual([{ waterMl: 150, scoops: 5 }]);
+    expect(scoopOptions(165, 30)).toEqual([{ waterMl: 165, scoops: 5.5 }]);
   });
 
-  it('меньше одной ложки: только вариант вверх', () => {
-    expect(scoopOptions(20, 30)).toEqual([{ waterMl: 30, scoops: 1 }]);
+  it('меньше половины ложки: только вариант вверх', () => {
+    expect(scoopOptions(10, 30)).toEqual([{ waterMl: 15, scoops: 0.5 }]);
   });
 });
