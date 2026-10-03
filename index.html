@@ -38,25 +38,6 @@
 
   <section class="panel" aria-label="Данные для расчёта">
     <div class="row">
-      <label for="dob">Дата рождения<span class="hint">возраст считается сам</span></label>
-      <input type="date" id="dob">
-    </div>
-    <div class="row">
-      <label for="weight">Вес, г или кг<span class="hint" id="weightDate"></span></label>
-      <input type="text" id="weight" inputmode="decimal" autocomplete="off">
-    </div>
-    <div class="row">
-      <label for="kcal">Ккал на 100 мл<span class="hint">готовой смеси, не порошка</span></label>
-      <input type="number" id="kcal" inputmode="decimal" step="1">
-    </div>
-    <div class="row">
-      <span class="rl">Смесь</span>
-      <select id="formula" aria-label="Смесь">
-        <option value="nan-optipro-1">NAN Optipro 1 · 67</option>
-        <option value="custom">Своя смесь</option>
-      </select>
-    </div>
-    <div class="row">
       <span class="rl">Кормлений в сутки<span class="hint">выбираете сами, можно диапазон</span></span>
       <div class="range">
         <div class="stepper"><button type="button" data-step="min,-1" aria-label="Меньше">−</button><output id="fmin"></output><button type="button" data-step="min,1" aria-label="Больше">+</button></div>
@@ -64,6 +45,33 @@
         <div class="stepper"><button type="button" data-step="max,-1" aria-label="Меньше">−</button><output id="fmax"></output><button type="button" data-step="max,1" aria-label="Больше">+</button></div>
       </div>
       <div class="suggest" id="suggest"></div>
+    </div>
+    <div class="row">
+      <label for="dob">Дата рождения<span class="hint">возраст считается сам</span></label>
+      <input type="date" id="dob">
+    </div>
+    <div class="row">
+      <label for="weight">Вес, г<span class="hint" id="weightDate"></span></label>
+      <input type="text" id="weight" inputmode="decimal" autocomplete="off">
+    </div>
+    <div class="row">
+      <span class="rl">Смесь</span>
+      <select id="formula" aria-label="Смесь"></select>
+      <div class="formula-form" id="formulaForm" hidden>
+        <label><span>Название</span><input type="text" id="fName" autocomplete="off" placeholder="как на банке"></label>
+        <label><span>Ккал на 100 мл<span class="hint">готовой смеси, не порошка</span></span><input type="text" id="fKcal" inputmode="decimal" autocomplete="off"></label>
+        <label><span>Мл воды на 1 ложку<span class="hint">из таблицы на банке, можно не указывать</span></span><input type="text" id="fWater" inputmode="decimal" autocomplete="off"></label>
+        <div class="note err" id="formulaError" role="alert" hidden></div>
+        <div class="addw">
+          <button class="btn" type="button" id="fSave">Сохранить смесь</button>
+          <button class="btn ghost" type="button" id="fCancel">Отмена</button>
+        </div>
+      </div>
+      <div class="formula-meta" id="formulaMeta"></div>
+    </div>
+    <div class="row" id="kcalRow">
+      <label for="kcal">Ккал на 100 мл<span class="hint">готовой смеси, не порошка</span></label>
+      <input type="number" id="kcal" inputmode="decimal" step="1">
     </div>
   </section>
 
@@ -74,7 +82,7 @@
       <div class="wlist" id="wlist"></div>
       <button type="button" class="more" id="showAll" hidden></button>
       <div class="addw">
-        <input type="text" id="newWeight" placeholder="вес, г или кг" inputmode="decimal" autocomplete="off" aria-label="Новый вес">
+        <input type="text" id="newWeight" placeholder="вес, г" inputmode="decimal" autocomplete="off" aria-label="Новый вес">
         <input type="date" id="newWeightDate" aria-label="Дата замера">
         <button class="btn" type="button" id="addWeight">Записать вес</button>
       </div>

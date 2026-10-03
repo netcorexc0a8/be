@@ -14,7 +14,7 @@ import {
   type ScoopOption,
   type Issue,
 } from '../core';
-import { FORMULAS, latestWeight, type AppState, type WeightEntry } from './state';
+import { currentFormula, latestWeight, type AppState, type WeightEntry } from './state';
 
 export interface ScreenView {
   ageMonths: number;
@@ -28,6 +28,7 @@ export interface ScreenView {
   history: HistoryRow[];
   chart: WeightChart | null;
   scoops: ScoopsView | null;
+  formulaName: string;
 }
 
 /** Как развести: варианты в мерных ложках по таблице на банке. */
@@ -146,13 +147,14 @@ export function buildView(state: AppState, today: string): ScreenView {
       ]
     : [];
 
-  const formula = state.formula === 'custom' ? null : FORMULAS[state.formula];
+  const formula = currentFormula(state);
+  const water = formula.waterMlPerScoop;
   const scoops: ScoopsView | null =
-    r && formula
+    r && water
       ? {
-          waterMlPerScoop: formula.waterMlPerScoop,
-          rows: r.perFeeding.map((p) => ({ ...p, options: scoopOptions(p.ml, formula.waterMlPerScoop) })),
-          perDay: Math.round(r.mlDay / formula.waterMlPerScoop),
+          waterMlPerScoop: water,
+          rows: r.perFeeding.map((p) => ({ ...p, options: scoopOptions(p.ml, water) })),
+          perDay: Math.round(r.mlDay / water),
         }
       : null;
 
@@ -171,6 +173,7 @@ export function buildView(state: AppState, today: string): ScreenView {
     history: weightHistory(state.weights),
     chart: weightChart(state.weights),
     scoops,
+    formulaName: formula.name,
   };
 }
 

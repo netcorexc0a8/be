@@ -11,12 +11,18 @@ import '@fontsource/unbounded/latin-700.css';
 import './styles.css';
 import { parseWeightG, RULES, validateWeightEntry } from './core';
 import {
+  addCustomFormula,
   addWeight,
+  allFormulas,
   backupFileName,
+  currentFormula,
   exportBackup,
   importBackup,
+  removeCustomFormula,
   removeWeight,
-  FORMULAS,
+  selectFormula,
+  setFormulaKcal,
+  validateFormulaInput,
   latestWeight,
   loadState,
   localToday,
@@ -107,8 +113,7 @@ function render(): void {
   setField(el<HTMLInputElement>('weight'), String(weight.grams));
   el('weightDate').textContent = view.weightHint;
   setField(el<HTMLInputElement>('kcal'), String(state.kcalPer100ml));
-  el<HTMLInputElement>('kcal').disabled = state.formula !== 'custom';
-  setField(el<HTMLSelectElement>('formula'), state.formula);
+  renderFormula();
   el('fmin').textContent = String(state.feedingsMin);
   el('fmax').textContent = String(state.feedingsMax);
 
@@ -221,13 +226,84 @@ el<HTMLInputElement>('weight').addEventListener('change', (e) => {
 
 el<HTMLInputElement>('kcal').addEventListener('input', (e) => {
   const value = Number((e.target as HTMLInputElement).value.replace(',', '.'));
-  update({ ...state, kcalPer100ml: value, isExample: false });
+  update(setFormulaKcal(state, value));
 });
 
+const ADD_FORMULA = '__add';
+let formulaFormOpen = false;
+let confirmRemoveFormula = false;
+
+function renderFormula(): void {
+  const formula = currentFormula(state);
+  const select = el<HTMLSelectElement>('formula');
+  select.innerHTML =
+    allFormulas(state)
+      .map((f) => `<option value="${escapeHtml(f.id)}">${escapeHtml(f.name)}</option>`)
+      .join('') + `<option value="${ADD_FORMULA}">+ Добавить смесь</option>`;
+  select.value = formulaFormOpen ? ADD_FORMULA : state.formula;
+  el<HTMLInputElement>('kcal').disabled = !formula.custom;
+  el('formulaForm').hidden = !formulaFormOpen;
+  el('kcalRow').hidden = formulaFormOpen;
+  const meta = el('formulaMeta');
+  meta.hidden = formulaFormOpen || !formula.custom;
+  meta.innerHTML = formula.custom
+    ? `<span>${formula.waterMlPerScoop ? `${formatInt(formula.waterMlPerScoop)} мл воды на 1 ложку` : 'мл воды на ложку не указаны, ложки не считаются'}</span>` +
+      `<button type="button" class="del${confirmRemoveFormula ? ' confirm' : ''}" id="removeFormula">${confirmRemoveFormula ? 'Удалить смесь?' : 'Удалить'}</button>`
+    : '';
+}
+
+function resetFormulaForm(): void {
+  formulaFormOpen = false;
+  el('formulaError').hidden = true;
+  for (const id of ['fName', 'fKcal', 'fWater']) el<HTMLInputElement>(id).value = '';
+}
+
 el<HTMLSelectElement>('formula').addEventListener('change', (e) => {
-  const formula = (e.target as HTMLSelectElement).value as AppState['formula'];
-  const kcalPer100ml = formula === 'custom' ? state.kcalPer100ml : FORMULAS[formula].kcalPer100ml;
-  update({ ...state, formula, kcalPer100ml, isExample: false });
+  const id = (e.target as HTMLSelectElement).value;
+  confirmRemoveFormula = false;
+  if (id === ADD_FORMULA) {
+    formulaFormOpen = true;
+    render();
+    el<HTMLInputElement>('fName').focus();
+    return;
+  }
+  formulaFormOpen = false;
+  update(selectFormula(state, id));
+});
+
+el('fCancel').addEventListener('click', () => {
+  resetFormulaForm();
+  render();
+});
+
+el('fSave').addEventListener('click', () => {
+  const result = validateFormulaInput(
+    {
+      name: el<HTMLInputElement>('fName').value,
+      kcal: el<HTMLInputElement>('fKcal').value,
+      water: el<HTMLInputElement>('fWater').value,
+    },
+    allFormulas(state).map((f) => f.name),
+  );
+  const errorBox = el('formulaError');
+  if (!result.ok) {
+    errorBox.textContent = result.error;
+    errorBox.hidden = false;
+    return;
+  }
+  resetFormulaForm();
+  update(addCustomFormula(state, result.value, `f${Date.now().toString(36)}`));
+});
+
+el('formulaMeta').addEventListener('click', (e) => {
+  if ((e.target as HTMLElement).id !== 'removeFormula') return;
+  if (confirmRemoveFormula) {
+    confirmRemoveFormula = false;
+    update(removeCustomFormula(state, state.formula));
+  } else {
+    confirmRemoveFormula = true;
+    render();
+  }
 });
 
 document.querySelectorAll<HTMLButtonElement>('[data-step]').forEach((button) => {

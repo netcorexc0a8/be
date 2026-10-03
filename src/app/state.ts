@@ -5,10 +5,22 @@ export interface WeightEntry {
   grams: number;
 }
 
+/** Смесь, которую пользователь добавил сам. */
+export interface CustomFormula {
+  id: string;
+  name: string;
+  kcalPer100ml: number;
+  /** Мл воды на 1 мерную ложку по таблице на банке; null — не указано, ложки не показываются. */
+  waterMlPerScoop: number | null;
+}
+
 export interface AppState {
   name: string;
   dob: string; // YYYY-MM-DD
-  formula: 'nan-optipro-1' | 'custom';
+  /** id выбранной смеси: встроенной (FORMULAS) или своей (customFormulas). */
+  formula: string;
+  customFormulas: CustomFormula[];
+  /** Калорийность выбранной смеси (копия, по ней идут расчёт и проверки). */
   kcalPer100ml: number;
   feedingsMin: number;
   feedingsMax: number;
@@ -22,6 +34,10 @@ export const FORMULAS = {
   'nan-optipro-1': { label: 'NAN Optipro 1', kcalPer100ml: 67, waterMlPerScoop: 30 },
 } as const;
 
+type BuiltInId = keyof typeof FORMULAS;
+const isBuiltIn = (id: string): id is BuiltInId => Object.hasOwn(FORMULAS, id);
+const DEFAULT_FORMULA: BuiltInId = 'nan-optipro-1';
+
 export const STORAGE_KEY = 'formula-calculator/state/v1';
 
 /** Пример из методики: 5700 г, 3 мес., NAN Optipro, 6–7 кормлений. */
@@ -29,7 +45,8 @@ export function exampleState(today: string): AppState {
   return {
     name: 'Малыш',
     dob: shiftMonths(today, -3),
-    formula: 'nan-optipro-1',
+    formula: DEFAULT_FORMULA,
+    customFormulas: [],
     kcalPer100ml: 67,
     feedingsMin: 6,
     feedingsMax: 7,
@@ -49,6 +66,16 @@ function shiftMonths(date: string, months: number): string {
 const isDate = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
+const isCustomFormula = (f: unknown): f is CustomFormula => {
+  const c = f as Partial<CustomFormula> | null;
+  return (
+    typeof c?.id === 'string' &&
+    typeof c.name === 'string' &&
+    isNum(c.kcalPer100ml) &&
+    (c.waterMlPerScoop === null || (isNum(c.waterMlPerScoop) && c.waterMlPerScoop > 0))
+  );
+};
+
 /** Разбирает сохранённое состояние; при любой ошибке возвращает null. */
 export function parseState(raw: string | null): AppState | null {
   if (!raw) return null;
@@ -60,7 +87,7 @@ export function parseState(raw: string | null): AppState | null {
     if (
       typeof s.name !== 'string' ||
       !isDate(s.dob) ||
-      (s.formula !== 'nan-optipro-1' && s.formula !== 'custom') ||
+      typeof s.formula !== 'string' ||
       !isNum(s.kcalPer100ml) ||
       !isNum(s.feedingsMin) ||
       !isNum(s.feedingsMax) ||
@@ -68,10 +95,17 @@ export function parseState(raw: string | null): AppState | null {
     ) {
       return null;
     }
+    let customFormulas = Array.isArray(s.customFormulas) ? s.customFormulas.filter(isCustomFormula) : [];
+    // данные до списка смесей: «своя смесь» хранилась только калорийностью
+    if (!Array.isArray(s.customFormulas) && s.formula === 'custom') {
+      customFormulas = [{ id: 'custom', name: 'Своя смесь', kcalPer100ml: s.kcalPer100ml, waterMlPerScoop: null }];
+    }
+    if (!isBuiltIn(s.formula) && !customFormulas.some((f) => f.id === s.formula)) return null;
     return {
       name: s.name,
       dob: s.dob,
       formula: s.formula,
+      customFormulas,
       kcalPer100ml: s.kcalPer100ml,
       feedingsMin: s.feedingsMin,
       feedingsMax: s.feedingsMax,
@@ -122,6 +156,91 @@ export function removeWeight(state: AppState, date: string): AppState {
   const weights = state.weights.filter((w) => w.date !== date);
   if (weights.length === state.weights.length) return state;
   return { ...state, weights, isExample: false };
+}
+
+export interface FormulaInfo {
+  id: string;
+  name: string;
+  kcalPer100ml: number;
+  waterMlPerScoop: number | null;
+  custom: boolean;
+}
+
+/** Все смеси для выбора: сначала встроенные, потом свои. */
+export function allFormulas(state: AppState): FormulaInfo[] {
+  const builtIn = (Object.keys(FORMULAS) as BuiltInId[]).map((id) => ({
+    id,
+    name: FORMULAS[id].label,
+    kcalPer100ml: FORMULAS[id].kcalPer100ml,
+    waterMlPerScoop: FORMULAS[id].waterMlPerScoop,
+    custom: false,
+  }));
+  return [...builtIn, ...state.customFormulas.map((f) => ({ ...f, custom: true }))];
+}
+
+/** Выбранная смесь. Калорийность берётся из состояния (по ней идёт расчёт). */
+export function currentFormula(state: AppState): FormulaInfo {
+  const found = allFormulas(state).find((f) => f.id === state.formula);
+  if (!found) throw new Error(`Нет смеси ${state.formula}`);
+  return { ...found, kcalPer100ml: state.kcalPer100ml };
+}
+
+export function selectFormula(state: AppState, id: string): AppState {
+  const f = allFormulas(state).find((x) => x.id === id);
+  if (!f) return state;
+  return { ...state, formula: id, kcalPer100ml: f.kcalPer100ml, isExample: false };
+}
+
+/** Добавляет свою смесь и сразу выбирает её. */
+export function addCustomFormula(state: AppState, input: Omit<CustomFormula, 'id'>, id: string): AppState {
+  const customFormulas = [...state.customFormulas, { id, ...input }];
+  return selectFormula({ ...state, customFormulas }, id);
+}
+
+/** Удаляет свою смесь; если она была выбрана, выбирается NAN Optipro 1. */
+export function removeCustomFormula(state: AppState, id: string): AppState {
+  const customFormulas = state.customFormulas.filter((f) => f.id !== id);
+  const next = { ...state, customFormulas, isExample: false };
+  return state.formula === id ? selectFormula(next, DEFAULT_FORMULA) : next;
+}
+
+/** Правка калорийности выбранной своей смеси. Калорийность встроенной смеси не меняется. */
+export function setFormulaKcal(state: AppState, kcalPer100ml: number): AppState {
+  if (isBuiltIn(state.formula)) return state;
+  const customFormulas = state.customFormulas.map((f) => (f.id === state.formula ? { ...f, kcalPer100ml } : f));
+  return { ...state, customFormulas, kcalPer100ml, isExample: false };
+}
+
+export type FormulaInputResult =
+  | { ok: true; value: Omit<CustomFormula, 'id'> }
+  | { ok: false; error: string };
+
+/**
+ * Проверка формы новой смеси. Диапазон калорийности здесь не проверяется:
+ * это делает общая проверка расчёта, и при ошибке расчёт не показывается.
+ */
+export function validateFormulaInput(
+  input: { name: string; kcal: string; water: string },
+  existingNames: string[] = Object.values(FORMULAS).map((f) => f.label),
+): FormulaInputResult {
+  const name = input.name.trim();
+  if (!name) return { ok: false, error: 'Укажите название смеси.' };
+  if (existingNames.some((n) => n.toLowerCase() === name.toLowerCase())) {
+    return { ok: false, error: 'Смесь с таким названием уже есть.' };
+  }
+  const kcal = Number(input.kcal.trim().replace(',', '.'));
+  if (!input.kcal.trim() || !Number.isFinite(kcal) || kcal <= 0) {
+    return { ok: false, error: 'Укажите ккал на 100 мл готовой смеси.' };
+  }
+  const waterRaw = input.water.trim();
+  let waterMlPerScoop: number | null = null;
+  if (waterRaw) {
+    waterMlPerScoop = Number(waterRaw.replace(',', '.'));
+    if (!Number.isFinite(waterMlPerScoop) || waterMlPerScoop <= 0) {
+      return { ok: false, error: 'Мл воды на 1 ложку: укажите число с банки или оставьте пустым.' };
+    }
+  }
+  return { ok: true, value: { name, kcalPer100ml: kcal, waterMlPerScoop } };
 }
 
 /** Сегодняшняя дата по местному времени устройства. */
