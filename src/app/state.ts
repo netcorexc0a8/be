@@ -18,7 +18,8 @@ export interface AppState {
 }
 
 export const FORMULAS = {
-  'nan-optipro-1': { label: 'NAN Optipro 1', kcalPer100ml: 67 },
+  // waterMlPerScoop — из таблицы кормления на банке: 1 мерная ложка без горки на 30 мл воды
+  'nan-optipro-1': { label: 'NAN Optipro 1', kcalPer100ml: 67, waterMlPerScoop: 30 },
 } as const;
 
 export const STORAGE_KEY = 'formula-calculator/state/v1';

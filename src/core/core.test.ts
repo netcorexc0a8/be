@@ -8,6 +8,7 @@ import {
   feedingRange,
   kcalPerKg,
   parseWeightG,
+  scoopOptions,
   validate,
   validateWeightEntry,
   type ValidationInput,
@@ -223,5 +224,29 @@ describe('проверка нового замера веса', () => {
 
   it('дата раньше рождения отклоняется', () => {
     expect(validateWeightEntry({ grams: 3500, date: '2026-06-17', dob, today })?.code).toBe('weight-date-before-birth');
+  });
+});
+
+describe('мерные ложки', () => {
+  it('163 мл: два ближайших варианта по таблице банки (30 мл воды на ложку)', () => {
+    expect(scoopOptions(163, 30)).toEqual([
+      { waterMl: 150, scoops: 5 },
+      { waterMl: 180, scoops: 6 },
+    ]);
+  });
+
+  it('140 мл: 120 мл и 4 ложки или 150 мл и 5 ложек', () => {
+    expect(scoopOptions(140, 30)).toEqual([
+      { waterMl: 120, scoops: 4 },
+      { waterMl: 150, scoops: 5 },
+    ]);
+  });
+
+  it('ровно по таблице: один вариант', () => {
+    expect(scoopOptions(150, 30)).toEqual([{ waterMl: 150, scoops: 5 }]);
+  });
+
+  it('меньше одной ложки: только вариант вверх', () => {
+    expect(scoopOptions(20, 30)).toEqual([{ waterMl: 30, scoops: 1 }]);
   });
 });

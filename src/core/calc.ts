@@ -35,6 +35,22 @@ export function calculate(input: CalcInput, rules: FeedingRules = RULES): CalcRe
   return { kcalPerKg: norm, kcalDay, portions, mlDay, perFeeding };
 }
 
+export interface ScoopOption {
+  waterMl: number;
+  scoops: number;
+}
+
+/**
+ * Ближайшие варианты разведения по таблице на банке: целое число ложек
+ * и вода к ним. Объём из расчёта считается объёмом воды. Если объём
+ * между двумя строками — оба варианта (меньше и больше), выбирает пользователь.
+ */
+export function scoopOptions(ml: number, waterMlPerScoop: number): ScoopOption[] {
+  const exact = ml / waterMlPerScoop;
+  const counts = [...new Set([Math.floor(exact), Math.ceil(exact)])].filter((n) => n >= 1);
+  return counts.map((scoops) => ({ waterMl: scoops * waterMlPerScoop, scoops }));
+}
+
 /** Подсказка числа кормлений по возрасту или null, если возраст вне таблицы. */
 export function feedingHint(
   ageMonths: number,

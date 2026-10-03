@@ -127,6 +127,27 @@ function render(): void {
         )
         .join('')
     : '';
+  const scoops = el('scoops');
+  const sv = view.scoops;
+  scoops.hidden = !sv;
+  scoops.innerHTML = sv
+    ? `<div class="label">Как развести</div>` +
+      sv.rows
+        .map(
+          (row) => `<div class="scoop-row">
+            <div class="n">${row.feedings} ${plural(row.feedings, 'кормление', 'кормления', 'кормлений')} · по расчёту ${formatInt(row.ml)} мл</div>
+            ${row.options
+              .map(
+                (o) => `<div class="scoop-opt"><b>${formatInt(o.waterMl)} мл воды + ${o.scoops} ${plural(o.scoops, 'ложка', 'ложки', 'ложек')}</b>${
+                  row.options.length > 1 ? `<span>${o.waterMl < row.ml ? 'чуть меньше' : 'чуть больше'} расчёта</span>` : ''
+                }</div>`,
+              )
+              .join('')}
+          </div>`,
+        )
+        .join('') +
+      `<div class="scoop-foot">За сутки около ${sv.perDay} ${plural(sv.perDay, 'ложки', 'ложек', 'ложек')}. По таблице на банке: 1&nbsp;мерная ложка без горки на ${sv.waterMlPerScoop}&nbsp;мл воды. Ложку не досыпать и не пересыпать.</div>`
+    : '';
   el('notes').innerHTML =
     view.errors.map((i) => `<div class="note err">${escapeHtml(i.message)}</div>`).join('') +
     view.warnings.map((i) => `<div class="note warn">${escapeHtml(i.message)}</div>`).join('');
