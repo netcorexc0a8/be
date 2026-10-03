@@ -67,11 +67,10 @@ export function plural(n: number, one: string, few: string, many: string): strin
   return many;
 }
 
-/** 5 → «5 ложек», 5,5 → «5½ ложки», 0,5 → «½ ложки». */
+/** 5 → «5 ложек», 5,5 → «5,5 ложки», 0,5 → «0,5 ложки». */
 export function formatScoops(scoops: number): string {
-  const whole = Math.floor(scoops);
-  if (scoops === whole) return `${whole} ${plural(whole, 'ложка', 'ложки', 'ложек')}`;
-  return `${whole > 0 ? whole : ''}½ ложки`;
+  if (Number.isInteger(scoops)) return `${scoops} ${plural(scoops, 'ложка', 'ложки', 'ложек')}`;
+  return `${nf1.format(scoops)} ложки`;
 }
 
 /** Насколько вариант разведения отличается от расчёта: «на 2 мл больше расчёта». */

@@ -117,10 +117,10 @@ describe('экран', () => {
 
   it('подписи ложек и разницы с расчётом', () => {
     expect(formatScoops(5)).toBe('5 ложек');
-    expect(formatScoops(5.5)).toBe('5½ ложки');
+    expect(formatScoops(5.5)).toBe('5,5 ложки');
     expect(formatScoops(4)).toBe('4 ложки');
     expect(formatScoops(1)).toBe('1 ложка');
-    expect(formatScoops(0.5)).toBe('½ ложки');
+    expect(formatScoops(0.5)).toBe('0,5 ложки');
     expect(scoopDiff(150, 163)).toBe('на 13 мл меньше расчёта');
     expect(scoopDiff(165, 163)).toBe('на 2 мл больше расчёта');
   });
