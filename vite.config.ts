@@ -13,7 +13,7 @@ function serviceWorker(): Plugin {
     generateBundle(_options, bundle) {
       const publicFiles = readdirSync(new URL('./public', import.meta.url));
       const files = [...new Set(['./', 'index.html', ...Object.keys(bundle), ...publicFiles])].filter(
-        (f) => !f.endsWith('.map'),
+        (f) => !f.endsWith('.map') && f !== 'CNAME',
       );
       const version = createHash('sha256').update(files.join('\n')).digest('hex').slice(0, 12);
       this.emitFile({
@@ -71,7 +71,7 @@ self.addEventListener('fetch', (event) => {
 `;
 
 export default defineConfig({
-  // относительные пути: приложение работает и на GitHub Pages (/be/), и локально
+  // относительные пути: приложение работает и на своём домене, и по адресу GitHub Pages (/be/), и локально
   base: './',
   plugins: [serviceWorker()],
 });
