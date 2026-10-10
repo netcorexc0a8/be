@@ -389,7 +389,7 @@ el('exportData').addEventListener('click', async () => {
   // На телефоне удобнее системное меню «Поделиться»: «Сохранить в Файлы», мессенджер, почта.
   if (navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: 'Сколько смеси: резервная копия' });
+      await navigator.share({ files: [file], title: 'Кормилка: резервная копия' });
       showBackupStatus('Копия сохранена.');
       return;
     } catch (e) {
