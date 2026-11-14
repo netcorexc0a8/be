@@ -151,3 +151,60 @@ export function feedHistory(log: FeedEntry[], now: Date): FeedHistoryDay[] {
     .sort(([a], [b]) => b.localeCompare(a))
     .map(([date, times]) => ({ date, count: times.length, times }));
 }
+
+const MIN_PER_DAY = 1440;
+const minuteOfDay = (at: string): number => Number(at.slice(11, 13)) * 60 + Number(at.slice(14, 16));
+
+/** 210 → «3 ч 30», 180 → «3 ч», 45 → «45 мин»: подпись промежутка на графике. */
+export function formatGapShort(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m} мин`;
+  return m === 0 ? `${h} ч` : `${h} ч ${pad(m)}`;
+}
+
+export interface DayTimeline {
+  /** Положение «сейчас» на ленте суток, от 0 до 1. */
+  now: number;
+  /** Кормления сегодня по порядку: положение от 0 до 1 и время. */
+  points: { x: number; time: string }[];
+  /** Промежутки между соседними кормлениями сегодня: от, до (0…1) и подпись. */
+  gaps: { from: number; to: number; label: string }[];
+}
+
+/** Лента сегодняшних суток для графика. */
+export function dayTimeline(log: FeedEntry[], now: Date): DayTimeline {
+  const date = localDate(now);
+  const today = log.filter((e) => e.at.startsWith(date)).map((e) => minuteOfDay(e.at));
+  return {
+    now: (now.getHours() * 60 + now.getMinutes()) / MIN_PER_DAY,
+    points: today.map((m) => ({ x: m / MIN_PER_DAY, time: `${pad(Math.floor(m / 60))}:${pad(m % 60)}` })),
+    gaps: today.slice(1).map((m, i) => ({
+      from: today[i]! / MIN_PER_DAY,
+      to: m / MIN_PER_DAY,
+      label: formatGapShort(m - today[i]!),
+    })),
+  };
+}
+
+export interface RhythmRow {
+  date: string;
+  today: boolean;
+  /** Кормления за сутки: положение от 0 до 1. */
+  xs: number[];
+}
+
+/** Ритм за несколько дней: строка на каждые сутки, сегодня сверху. */
+export function weekRhythm(log: FeedEntry[], now: Date, days = 7): RhythmRow[] {
+  const rows: RhythmRow[] = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const date = localDate(d);
+    rows.push({
+      date,
+      today: i === 0,
+      xs: log.filter((e) => e.at.startsWith(date)).map((e) => minuteOfDay(e.at) / MIN_PER_DAY),
+    });
+  }
+  return rows;
+}

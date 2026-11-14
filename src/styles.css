@@ -170,3 +170,17 @@ select { width: auto; max-width: 100%; }
 .fday:last-child { border-bottom: 0; }
 .fday .fday-n { color: var(--muted); text-align: right; }
 .fday .fday-times { grid-column: 1 / -1; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* графики кормлений */
+:root { --now: #C2410C; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --now: #F59E62; } }
+:root[data-theme="dark"] { --now: #F59E62; }
+.feed-line, .feed-week svg { width: 100%; height: auto; display: block; overflow: visible; font-family: var(--font-body); font-variant-numeric: tabular-nums; }
+.feed-line { aspect-ratio: 310 / 100; }
+.feed-week svg { aspect-ratio: 310 / 240; }
+.feed-line text, .feed-week text { font-size: 11px; fill: var(--muted); }
+.feed-line text.t { fill: var(--fg); font-weight: 600; }
+.feed-line text.now { fill: var(--now); }
+.feed-week text { font-size: 12px; }
+.feed-week text.today { fill: var(--fg); font-weight: 600; }
+.feed-week { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
