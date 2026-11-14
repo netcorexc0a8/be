@@ -41,9 +41,8 @@
       <div class="label">Кормления сегодня</div>
       <div class="feed-count">
         <div><b id="feedCount">0</b> <span id="feedPlan"></span></div>
-        <div class="dots" id="feedDots" aria-hidden="true"></div>
+        <div class="feed-since" id="feedSince" aria-live="polite"></div>
       </div>
-      <div class="feed-since" id="feedSince" aria-live="polite"></div>
       <svg class="feed-line" id="feedLine" viewBox="0 0 310 100" role="img" aria-label="Кормления сегодня на ленте суток"></svg>
       <div class="feed-form">
         <div class="addw">
@@ -54,16 +53,20 @@
           <button class="btn ghost" type="button" id="feedCancel">Отмена</button>
           <button class="btn ghost danger" type="button" id="feedDelete">Удалить отметку</button>
         </div>
-        <div class="hint-text" id="feedHint">Время подставлено само (сейчас). Отметили позже — поправьте.</div>
+        <div class="hint-text" id="feedHint" hidden></div>
         <div class="note err" id="feedError" role="alert" hidden></div>
       </div>
-      <div class="wlist" id="feedList"></div>
-      <div class="feed-week" id="feedWeekBox" hidden>
-        <div class="label">Ритм за 7 дней</div>
-        <svg id="feedWeek" viewBox="0 0 310 240" role="img" aria-label="Время кормлений по дням за неделю"></svg>
-      </div>
-      <details class="feed-days" id="feedDaysBox" hidden>
-        <summary>Прошлые дни</summary>
+      <details class="feed-fold" id="feedTodayBox" hidden>
+        <summary id="feedTodaySummary">Отметки за сегодня</summary>
+        <div class="wlist" id="feedList"></div>
+      </details>
+      <details class="feed-fold" id="feedHistBox" hidden>
+        <summary>История</summary>
+        <div class="feed-week" id="feedWeekBox" hidden>
+          <div class="label">Ритм за 7 дней</div>
+          <svg id="feedWeek" viewBox="0 0 310 240" role="img" aria-label="Время кормлений по дням за неделю"></svg>
+        </div>
+        <div class="label feed-days-label">По дням</div>
         <div class="wlist" id="feedDays"></div>
         <button type="button" class="more" id="feedDaysAll" hidden></button>
       </details>

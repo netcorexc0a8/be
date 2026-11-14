@@ -29,7 +29,7 @@ import {
   saveState,
   type AppState,
 } from './app/state';
-import { addFeed, dayTimeline, feedDay, feedDots, feedHistory, isYesterday, moveFeed, removeFeed, resolveFeedAt, timeNow, weekRhythm, type DayTimeline, type RhythmRow } from './app/feeds';
+import { addFeed, dayTimeline, editFeedAt, feedDay, feedHistory, isYesterday, moveFeed, removeFeed, resolveFeedAt, timeNow, weekRhythm, type DayTimeline, type RhythmRow } from './app/feeds';
 import { buildView, CHART, formatDayMonth, formatInt, formatScoops, plural, scoopDiff, type WeightChart } from './app/view';
 
 const storage = (() => {
@@ -219,12 +219,9 @@ function renderFeeds(): void {
   const plan = state.feedingsMin === state.feedingsMax ? `${state.feedingsMax}` : `${state.feedingsMin}–${state.feedingsMax}`;
   el('feedCount').textContent = String(day.count);
   el('feedPlan').textContent = `из ${plan} кормлений`;
-  el('feedDots').innerHTML = feedDots(day.count, state.feedingsMax)
-    .map((on) => `<span class="dot${on ? ' on' : ''}"></span>`)
-    .join('');
   el('feedSince').innerHTML = day.since
-    ? `Последнее ${day.lastTime!.startsWith('вчера') ? '' : 'в '}${day.lastTime}, <b>${day.since}</b>`
-    : 'Сегодня ещё нет отметок.';
+    ? `последнее ${day.lastTime!.startsWith('вчера') ? '' : 'в '}${day.lastTime}<br><b>${day.since}</b>`
+    : 'отметок пока нет';
 
   const time = el<HTMLInputElement>('feedTime');
   if (!editingFeed && !feedTimeTouched) setField(time, timeNow(now));
@@ -233,16 +230,21 @@ function renderFeeds(): void {
   const del = el('feedDelete');
   del.textContent = confirmFeedDelete ? 'Точно удалить?' : 'Удалить отметку';
   del.classList.toggle('confirm', confirmFeedDelete);
-  el('feedHint').textContent = isYesterday(time.value, now)
-    ? 'Время позже текущего: запишется на вчера.'
-    : editingFeed
-      ? `Меняете отметку ${editingFeed.slice(11)}.`
-      : 'Время подставлено само (сейчас). Отметили позже — поправьте.';
+  // подсказка только когда она нужна: правка или время «на вчера»
+  const hint = editingFeed
+    ? `Меняете отметку ${editingFeed.startsWith(day.date) ? '' : `${formatDayMonth(editingFeed.slice(0, 10))}, `}${editingFeed.slice(11)}.`
+    : isYesterday(time.value, now)
+      ? 'Время позже текущего: запишется на вчера.'
+      : '';
+  el('feedHint').textContent = hint;
+  el('feedHint').hidden = hint === '';
 
   el('feedLine').innerHTML = timelineSvg(dayTimeline(state.feedLog, now));
   const week = weekRhythm(state.feedLog, now);
   const hasWeek = week.some((r) => !r.today && r.xs.length > 0);
   el('feedWeekBox').hidden = !hasWeek;
+  el('feedTodayBox').hidden = day.count === 0;
+  el('feedTodaySummary').textContent = `Отметки за сегодня (${day.count})`;
   el('feedWeek').innerHTML = hasWeek ? rhythmSvg(week, dayTimeline([], now).now) : '';
 
   el('feedList').innerHTML = day.entries
@@ -256,13 +258,18 @@ function renderFeeds(): void {
     .join('');
 
   const days = feedHistory(state.feedLog, now);
-  el('feedDaysBox').hidden = days.length === 0;
+  el('feedHistBox').hidden = days.length === 0;
   el('feedDays').innerHTML = (showAllFeedDays ? days : days.slice(0, FEED_DAYS_COLLAPSED))
     .map(
       (d) => `<div class="fday">
         <span>${formatDayMonth(d.date)}</span>
         <span class="fday-n">${d.count} ${plural(d.count, 'кормление', 'кормления', 'кормлений')}</span>
-        <span class="fday-times">${d.times.join(', ')}</span>
+        <span class="fday-times">${d.entries
+          .map(
+            (e) =>
+              `<button type="button" class="chip${editingFeed === e.at ? ' editing' : ''}" data-feed="${e.at}" aria-label="Изменить отметку ${formatDayMonth(d.date)}, ${e.time}">${e.time}</button>`,
+          )
+          .join('')}</span>
       </div>`,
     )
     .join('');
@@ -547,14 +554,27 @@ el<HTMLInputElement>('feedTime').addEventListener('blur', () => {
 });
 
 el('feedSave').addEventListener('click', () => {
-  const at = resolveFeedAt(el<HTMLInputElement>('feedTime').value, new Date());
+  const value = el<HTMLInputElement>('feedTime').value;
+  const box = el('feedError');
+  if (editingFeed) {
+    const r = editFeedAt(editingFeed, value, new Date());
+    if (!r.ok) {
+      box.textContent = r.error;
+      box.hidden = false;
+      return;
+    }
+    const next = moveFeed(state, editingFeed, r.at);
+    resetFeedForm();
+    update(next);
+    return;
+  }
+  const at = resolveFeedAt(value, new Date());
   if (!at) {
-    const box = el('feedError');
     box.textContent = 'Укажите время кормления.';
     box.hidden = false;
     return;
   }
-  const next = editingFeed ? moveFeed(state, editingFeed, at) : addFeed(state, at);
+  const next = addFeed(state, at);
   resetFeedForm();
   update(next);
 });
@@ -576,7 +596,8 @@ el('feedDelete').addEventListener('click', () => {
   update(removeFeed(state, at));
 });
 
-el('feedList').addEventListener('click', (e) => {
+/** Нажатие на отметку (за сегодня или в истории): время попадает в форму для правки или удаления. */
+function startFeedEdit(e: Event): void {
   const button = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-feed]');
   if (!button) return;
   editingFeed = button.dataset.feed!;
@@ -584,7 +605,10 @@ el('feedList').addEventListener('click', (e) => {
   el('feedError').hidden = true;
   el<HTMLInputElement>('feedTime').value = editingFeed.slice(11);
   renderFeeds();
-});
+  el('feedTime').closest('.feed-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+el('feedList').addEventListener('click', startFeedEdit);
+el('feedDays').addEventListener('click', startFeedEdit);
 
 el('feedDaysAll').addEventListener('click', () => {
   showAllFeedDays = !showAllFeedDays;
