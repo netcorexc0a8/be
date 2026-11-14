@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   addFeed,
+  dayTimeline,
+  formatGapShort,
+  weekRhythm,
   feedDay,
   feedDots,
   feedHistory,
@@ -134,5 +137,55 @@ describe('сколько прошло', () => {
     expect(formatSince(5)).toBe('5 мин назад');
     expect(formatSince(60)).toBe('1 ч назад');
     expect(formatSince(161)).toBe('2 ч 41 мин назад');
+  });
+});
+
+describe('графики кормлений', () => {
+  const log: FeedEntry[] = [
+    { at: '2026-11-08T03:00' },
+    { at: '2026-11-13T22:40' },
+    { at: '2026-11-14T02:10' },
+    { at: '2026-11-14T06:00' },
+    { at: '2026-11-14T12:00' },
+  ];
+
+  it('лента дня: точки, промежутки между сегодняшними и «сейчас»', () => {
+    const t = dayTimeline(log, NOW);
+    expect(t.now).toBeCloseTo((14 * 60 + 30) / 1440);
+    expect(t.points).toEqual([
+      { x: 130 / 1440, time: '02:10' },
+      { x: 360 / 1440, time: '06:00' },
+      { x: 720 / 1440, time: '12:00' },
+    ]);
+    expect(t.gaps.map((g) => g.label)).toEqual(['3 ч 50', '6 ч']);
+    expect(t.gaps[0]).toMatchObject({ from: 130 / 1440, to: 360 / 1440 });
+  });
+
+  it('лента дня без отметок', () => {
+    expect(dayTimeline([], NOW)).toMatchObject({ points: [], gaps: [] });
+  });
+
+  it('ритм: 7 строк, сегодня сверху, дни без отметок пустые, старше недели не попадают', () => {
+    const rows = weekRhythm(log, NOW);
+    expect(rows.map((r) => r.date)).toEqual([
+      '2026-11-14', '2026-11-13', '2026-11-12', '2026-11-11', '2026-11-10', '2026-11-09', '2026-11-08',
+    ]);
+    expect(rows[0]).toMatchObject({ today: true, xs: [130 / 1440, 360 / 1440, 720 / 1440] });
+    expect(rows[1]?.xs).toEqual([1360 / 1440]);
+    expect(rows[2]?.xs).toEqual([]);
+    expect(rows[6]?.xs).toEqual([180 / 1440]);
+    expect(weekRhythm(log, NOW, 6).some((r) => r.date === '2026-11-08')).toBe(false);
+  });
+
+  it('ритм через границу месяца', () => {
+    expect(weekRhythm([], new Date(2026, 11, 2, 9, 0), 3).map((r) => r.date)).toEqual([
+      '2026-12-02', '2026-12-01', '2026-11-30',
+    ]);
+  });
+
+  it('короткая подпись промежутка', () => {
+    expect(formatGapShort(45)).toBe('45 мин');
+    expect(formatGapShort(180)).toBe('3 ч');
+    expect(formatGapShort(185)).toBe('3 ч 05');
   });
 });

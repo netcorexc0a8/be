@@ -29,7 +29,7 @@ import {
   saveState,
   type AppState,
 } from './app/state';
-import { addFeed, feedDay, feedDots, feedHistory, isYesterday, moveFeed, removeFeed, resolveFeedAt, timeNow } from './app/feeds';
+import { addFeed, dayTimeline, feedDay, feedDots, feedHistory, isYesterday, moveFeed, removeFeed, resolveFeedAt, timeNow, weekRhythm, type DayTimeline, type RhythmRow } from './app/feeds';
 import { buildView, CHART, formatDayMonth, formatInt, formatScoops, plural, scoopDiff, type WeightChart } from './app/view';
 
 const storage = (() => {
@@ -239,6 +239,12 @@ function renderFeeds(): void {
       ? `Меняете отметку ${editingFeed.slice(11)}.`
       : 'Время подставлено само (сейчас). Отметили позже — поправьте.';
 
+  el('feedLine').innerHTML = timelineSvg(dayTimeline(state.feedLog, now));
+  const week = weekRhythm(state.feedLog, now);
+  const hasWeek = week.some((r) => !r.today && r.xs.length > 0);
+  el('feedWeekBox').hidden = !hasWeek;
+  el('feedWeek').innerHTML = hasWeek ? rhythmSvg(week, dayTimeline([], now).now) : '';
+
   el('feedList').innerHTML = day.entries
     .map(
       (e) => `<div class="frow${editingFeed === e.at ? ' editing' : ''}">
@@ -263,6 +269,81 @@ function renderFeeds(): void {
   const all = el<HTMLButtonElement>('feedDaysAll');
   all.hidden = days.length <= FEED_DAYS_COLLAPSED;
   all.textContent = showAllFeedDays ? 'Свернуть' : `Показать все дни (${days.length})`;
+}
+
+const fx = (x: number, left: number, width: number): string => (left + x * width).toFixed(1);
+
+/** Лента сегодняшних суток: точки кормлений, промежутки над ними, отметка «сейчас». */
+function timelineSvg(t: DayTimeline): string {
+  const L = 6;
+  const W = 298;
+  const y = 40;
+  const nowX = Number(fx(t.now, L, W));
+  // подпись промежутка, только если она помещается между точками
+  const nowX0 = Number(fx(t.now, L, W));
+  const nowLeftEdge = nowX0 + 6 + 46 <= L + W ? Infinity : nowX0 - 6 - 46;
+  const gaps = t.gaps
+    .filter((g) => (g.to - g.from) * W >= 40 && L + ((g.from + g.to) / 2) * W + 20 < nowLeftEdge)
+    .map((g) => `<text x="${fx((g.from + g.to) / 2, L, W)}" y="${y - 20}" text-anchor="middle">${g.label}</text>`)
+    .join('');
+  // «сейчас» справа от отметки, а в конце суток — слева
+  const nowRight = nowX + 6 + 46 <= L + W;
+  const nowLabel = nowRight
+    ? `<text class="now" x="${nowX + 6}" y="${y - 20}">сейчас</text>`
+    : `<text class="now" x="${nowX - 6}" y="${y - 20}" text-anchor="end">сейчас</text>`;
+  // время под точкой, если не налезает на соседнее
+  let prevLabelX = -Infinity;
+  const times = t.points
+    .map((p) => {
+      const x = Number(fx(p.x, L, W));
+      if (x - prevLabelX < 34) return '';
+      prevLabelX = x;
+      return `<text class="t" x="${x}" y="${y + 30}" text-anchor="middle">${p.time}</text>`;
+    })
+    .join('');
+  return `<rect x="${L}" y="${y - 14}" width="${W}" height="28" rx="14" fill="var(--bg)"/>
+    <rect x="${L}" y="${y - 14}" width="${Math.max(nowX - L, 0)}" height="28" rx="14" fill="var(--accent-soft)"/>
+    ${gaps}
+    ${t.points.map((p) => `<circle cx="${fx(p.x, L, W)}" cy="${y}" r="8" fill="var(--accent)" stroke="var(--card)" stroke-width="2"/>`).join('')}
+    ${times}
+    <line x1="${nowX}" x2="${nowX}" y1="${y - 16}" y2="${y + 16}" stroke="var(--now)" stroke-width="2"/>
+    ${nowLabel}
+    ${[0, 6, 12, 18, 24]
+      .map((h) => `<text x="${fx(h / 24, L, W)}" y="${y + 52}" text-anchor="${h === 0 ? 'start' : h === 24 ? 'end' : 'middle'}">${String(h).padStart(2, '0')}</text>`)
+      .join('')}`;
+}
+
+/** «13 нояб.» */
+const shortDate = (date: string): string => {
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+};
+
+/** Ритм: строка на каждые сутки, точка на каждое кормление. */
+function rhythmSvg(rows: RhythmRow[], now: number): string {
+  const L = 62;
+  const W = 240;
+  const grid = [0, 6, 12, 18, 24]
+    .map((h) => {
+      const x = fx(h / 24, L, W);
+      return `<line x1="${x}" x2="${x}" y1="12" y2="216" stroke="var(--line)" stroke-dasharray="2 3"/>
+        <text x="${x}" y="232" text-anchor="${h === 0 ? 'start' : h === 24 ? 'end' : 'middle'}">${String(h).padStart(2, '0')}</text>`;
+    })
+    .join('');
+  const lines = rows
+    .map((r, i) => {
+      const y = 24 + i * 30;
+      const dots = r.xs
+        .map((x) => `<circle cx="${fx(x, L, W)}" cy="${y}" r="${r.today ? 5 : 4}" fill="var(--accent)"${r.today ? '' : ' fill-opacity=".6"'}/>`)
+        .join('');
+      const nowMark = r.today
+        ? `<line x1="${fx(now, L, W)}" x2="${fx(now, L, W)}" y1="${y - 9}" y2="${y + 9}" stroke="var(--now)" stroke-width="2"/>`
+        : '';
+      return `<text class="${r.today ? 'today' : ''}" x="0" y="${y + 4}">${r.today ? 'Сегодня' : shortDate(r.date)}</text>
+        <line x1="${L}" x2="${L + W}" y1="${y}" y2="${y}" stroke="var(--line)"/>${dots}${nowMark}`;
+    })
+    .join('');
+  return grid + lines;
 }
 
 function resetFeedForm(): void {
