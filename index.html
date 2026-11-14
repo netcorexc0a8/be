@@ -36,6 +36,35 @@
     <div class="notes" id="notes"></div>
   </section>
 
+  <section class="panel" aria-label="Кормления сегодня">
+    <div class="feeds">
+      <div class="label">Кормления сегодня</div>
+      <div class="feed-count">
+        <div><b id="feedCount">0</b> <span id="feedPlan"></span></div>
+        <div class="dots" id="feedDots" aria-hidden="true"></div>
+      </div>
+      <div class="feed-since" id="feedSince" aria-live="polite"></div>
+      <div class="feed-form">
+        <div class="addw">
+          <label class="feed-time"><span>Время</span><input type="time" id="feedTime"></label>
+          <button class="btn" type="button" id="feedSave">Покормили</button>
+        </div>
+        <div class="addw" id="feedEditActions" hidden>
+          <button class="btn ghost" type="button" id="feedCancel">Отмена</button>
+          <button class="btn ghost danger" type="button" id="feedDelete">Удалить отметку</button>
+        </div>
+        <div class="hint-text" id="feedHint">Время подставлено само (сейчас). Отметили позже — поправьте.</div>
+        <div class="note err" id="feedError" role="alert" hidden></div>
+      </div>
+      <div class="wlist" id="feedList"></div>
+      <details class="feed-days" id="feedDaysBox" hidden>
+        <summary>Прошлые дни</summary>
+        <div class="wlist" id="feedDays"></div>
+        <button type="button" class="more" id="feedDaysAll" hidden></button>
+      </details>
+    </div>
+  </section>
+
   <section class="panel" aria-label="Данные для расчёта">
     <div class="row">
       <span class="rl">Кормлений в сутки<span class="hint">выбираете сами, можно диапазон</span></span>

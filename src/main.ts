@@ -29,6 +29,7 @@ import {
   saveState,
   type AppState,
 } from './app/state';
+import { addFeed, feedDay, feedDots, feedHistory, isYesterday, moveFeed, removeFeed, resolveFeedAt, timeNow } from './app/feeds';
 import { buildView, CHART, formatDayMonth, formatInt, formatScoops, plural, scoopDiff, type WeightChart } from './app/view';
 
 const storage = (() => {
@@ -199,6 +200,77 @@ function render(): void {
   newDate.max = today();
   newDate.min = state.dob;
   if (!newDate.value) newDate.value = today();
+  renderFeeds();
+}
+
+// --- кормления ---
+
+const FEED_DAYS_COLLAPSED = 7;
+/** Отметка, которую сейчас правят (время из списка), или null. */
+let editingFeed: string | null = null;
+/** Пользователь сам поменял время в поле: не подставлять текущее. */
+let feedTimeTouched = false;
+let confirmFeedDelete = false;
+let showAllFeedDays = false;
+
+function renderFeeds(): void {
+  const now = new Date();
+  const day = feedDay(state.feedLog, now);
+  const plan = state.feedingsMin === state.feedingsMax ? `${state.feedingsMax}` : `${state.feedingsMin}–${state.feedingsMax}`;
+  el('feedCount').textContent = String(day.count);
+  el('feedPlan').textContent = `из ${plan} кормлений`;
+  el('feedDots').innerHTML = feedDots(day.count, state.feedingsMax)
+    .map((on) => `<span class="dot${on ? ' on' : ''}"></span>`)
+    .join('');
+  el('feedSince').innerHTML = day.since
+    ? `Последнее ${day.lastTime!.startsWith('вчера') ? '' : 'в '}${day.lastTime}, <b>${day.since}</b>`
+    : 'Сегодня ещё нет отметок.';
+
+  const time = el<HTMLInputElement>('feedTime');
+  if (!editingFeed && !feedTimeTouched) setField(time, timeNow(now));
+  el('feedSave').textContent = editingFeed ? 'Сохранить' : 'Покормили';
+  el('feedEditActions').hidden = !editingFeed;
+  const del = el('feedDelete');
+  del.textContent = confirmFeedDelete ? 'Точно удалить?' : 'Удалить отметку';
+  del.classList.toggle('confirm', confirmFeedDelete);
+  el('feedHint').textContent = isYesterday(time.value, now)
+    ? 'Время позже текущего: запишется на вчера.'
+    : editingFeed
+      ? `Меняете отметку ${editingFeed.slice(11)}.`
+      : 'Время подставлено само (сейчас). Отметили позже — поправьте.';
+
+  el('feedList').innerHTML = day.entries
+    .map(
+      (e) => `<div class="frow${editingFeed === e.at ? ' editing' : ''}">
+        <span class="ftime">${e.time}</span>
+        <span class="fgap">${e.gap ?? ''}</span>
+        <button type="button" class="del" data-feed="${e.at}" aria-label="Изменить отметку ${e.time}">Изменить</button>
+      </div>`,
+    )
+    .join('');
+
+  const days = feedHistory(state.feedLog, now);
+  el('feedDaysBox').hidden = days.length === 0;
+  el('feedDays').innerHTML = (showAllFeedDays ? days : days.slice(0, FEED_DAYS_COLLAPSED))
+    .map(
+      (d) => `<div class="fday">
+        <span>${formatDayMonth(d.date)}</span>
+        <span class="fday-n">${d.count} ${plural(d.count, 'кормление', 'кормления', 'кормлений')}</span>
+        <span class="fday-times">${d.times.join(', ')}</span>
+      </div>`,
+    )
+    .join('');
+  const all = el<HTMLButtonElement>('feedDaysAll');
+  all.hidden = days.length <= FEED_DAYS_COLLAPSED;
+  all.textContent = showAllFeedDays ? 'Свернуть' : `Показать все дни (${days.length})`;
+}
+
+function resetFeedForm(): void {
+  editingFeed = null;
+  feedTimeTouched = false;
+  confirmFeedDelete = false;
+  el('feedError').hidden = true;
+  el<HTMLInputElement>('feedTime').value = '';
 }
 
 // --- события ---
@@ -373,6 +445,64 @@ el('showAll').addEventListener('click', () => {
   render();
 });
 
+el<HTMLInputElement>('feedTime').addEventListener('input', () => {
+  feedTimeTouched = true;
+  renderFeeds();
+});
+
+el('feedSave').addEventListener('click', () => {
+  const at = resolveFeedAt(el<HTMLInputElement>('feedTime').value, new Date());
+  if (!at) {
+    const box = el('feedError');
+    box.textContent = 'Укажите время кормления.';
+    box.hidden = false;
+    return;
+  }
+  const next = editingFeed ? moveFeed(state, editingFeed, at) : addFeed(state, at);
+  resetFeedForm();
+  update(next);
+});
+
+el('feedCancel').addEventListener('click', () => {
+  resetFeedForm();
+  render();
+});
+
+el('feedDelete').addEventListener('click', () => {
+  if (!editingFeed) return;
+  if (!confirmFeedDelete) {
+    confirmFeedDelete = true;
+    renderFeeds();
+    return;
+  }
+  const at = editingFeed;
+  resetFeedForm();
+  update(removeFeed(state, at));
+});
+
+el('feedList').addEventListener('click', (e) => {
+  const button = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-feed]');
+  if (!button) return;
+  editingFeed = button.dataset.feed!;
+  confirmFeedDelete = false;
+  el('feedError').hidden = true;
+  el<HTMLInputElement>('feedTime').value = editingFeed.slice(11);
+  renderFeeds();
+});
+
+el('feedDaysAll').addEventListener('click', () => {
+  showAllFeedDays = !showAllFeedDays;
+  renderFeeds();
+});
+
+// «Сколько прошло» и текущее время в поле обновляются сами, пока приложение открыто.
+setInterval(() => {
+  if (document.visibilityState === 'visible') renderFeeds();
+}, 30_000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') renderFeeds();
+});
+
 // --- резервная копия ---
 
 let pendingImport: AppState | null = null;
@@ -422,7 +552,7 @@ el<HTMLInputElement>('importFile').addEventListener('change', async (e) => {
   pendingImport = restored;
   const last = restored.weights[restored.weights.length - 1]!;
   el('importConfirmText').textContent =
-    `В файле: ${restored.name}, ${restored.weights.length} ${plural(restored.weights.length, 'замер', 'замера', 'замеров')} веса, последний ${formatInt(last.grams)} г. Заменить текущие данные?`;
+    `В файле: ${restored.name}, ${restored.weights.length} ${plural(restored.weights.length, 'замер', 'замера', 'замеров')} веса, последний ${formatInt(last.grams)} г; ${restored.feedLog.length} ${plural(restored.feedLog.length, 'отметка', 'отметки', 'отметок')} кормлений. Заменить текущие данные?`;
   el('importConfirm').hidden = false;
   el('backupStatus').hidden = true;
 });

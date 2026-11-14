@@ -1,5 +1,7 @@
 // Состояние приложения и его сохранение на устройстве.
 
+import { parseFeedLog, type FeedEntry } from './feeds';
+
 export interface WeightEntry {
   date: string; // YYYY-MM-DD
   grams: number;
@@ -25,6 +27,8 @@ export interface AppState {
   feedingsMin: number;
   feedingsMax: number;
   weights: WeightEntry[];
+  /** Отметки кормлений, по времени. */
+  feedLog: FeedEntry[];
   /** true, пока пользователь не ввёл свои данные: показываем пометку «пример». */
   isExample: boolean;
 }
@@ -51,6 +55,7 @@ export function exampleState(today: string): AppState {
     feedingsMin: 6,
     feedingsMax: 7,
     weights: [{ date: today, grams: 5700 }],
+    feedLog: [],
     isExample: true,
   };
 }
@@ -110,6 +115,7 @@ export function parseState(raw: string | null): AppState | null {
       feedingsMin: s.feedingsMin,
       feedingsMax: s.feedingsMax,
       weights: [...weights].sort((a, b) => a.date.localeCompare(b.date)),
+      feedLog: parseFeedLog(s.feedLog),
       isExample: s.isExample === true,
     };
   } catch {
