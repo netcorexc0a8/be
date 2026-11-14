@@ -1,12 +1,10 @@
-// Журнал кормлений: когда покормили и сколько выпито. Без DOM; «сейчас» передаётся параметром.
+// Журнал кормлений: когда покормили. Без DOM; «сейчас» передаётся параметром.
 
 import type { AppState } from './state';
 
 export interface FeedEntry {
   /** Местное время устройства: YYYY-MM-DDTHH:MM. */
   at: string;
-  /** Сколько мл выпито; null — не указано. */
-  ml: number | null;
 }
 
 const AT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
@@ -16,19 +14,16 @@ const localAt = (d: Date): string => `${localDate(d)}T${pad(d.getHours())}:${pad
 
 const isEntry = (e: unknown): e is FeedEntry => {
   const c = e as Partial<FeedEntry> | null;
-  return (
-    typeof c?.at === 'string' &&
-    AT_RE.test(c.at) &&
-    (c.ml === null || (Number.isInteger(c.ml) && (c.ml as number) > 0))
-  );
+  return typeof c?.at === 'string' && AT_RE.test(c.at);
 };
 
 const byTime = (a: FeedEntry, b: FeedEntry): number => a.at.localeCompare(b.at);
 
-/** Журнал из сохранённых данных: испорченные записи отбрасываются. */
+/** Журнал из сохранённых данных: испорченные записи и повторы отбрасываются. */
 export function parseFeedLog(raw: unknown): FeedEntry[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter(isEntry).map((e) => ({ at: e.at, ml: e.ml })).sort(byTime);
+  const unique = new Set(raw.filter(isEntry).map((e) => e.at));
+  return [...unique].sort().map((at) => ({ at }));
 }
 
 /** Текущее время для поля ввода: «18:30». */
@@ -55,113 +50,104 @@ export function isYesterday(time: string, now: Date): boolean {
   return at !== null && at.slice(0, 10) !== localDate(now);
 }
 
-export type FeedMlResult = { ok: true; ml: number | null } | { ok: false; error: string };
-
-/** Выпитые мл: пусто — не указано, иначе целое положительное число. */
-export function validateFeedMl(raw: string): FeedMlResult {
-  const s = raw.trim();
-  if (!s) return { ok: true, ml: null };
-  const ml = Number(s);
-  if (!/^\d+$/.test(s) || !Number.isInteger(ml) || ml <= 0) {
-    return { ok: false, error: 'Мл: укажите целое число или оставьте поле пустым.' };
-  }
-  return { ok: true, ml };
-}
-
-/** Добавляет отметку; отметка на ту же минуту заменяется (защита от двойного нажатия). */
-export function addFeed(state: AppState, entry: FeedEntry): AppState {
-  const feedLog = state.feedLog.filter((e) => e.at !== entry.at);
-  feedLog.push(entry);
-  feedLog.sort(byTime);
-  return { ...state, feedLog };
+/** Добавляет отметку; отметка на ту же минуту не дублируется (защита от двойного нажатия). */
+export function addFeed(state: AppState, at: string): AppState {
+  if (state.feedLog.some((e) => e.at === at)) return state;
+  return { ...state, feedLog: [...state.feedLog, { at }].sort(byTime) };
 }
 
 export function removeFeed(state: AppState, at: string): AppState {
   return { ...state, feedLog: state.feedLog.filter((e) => e.at !== at) };
 }
 
-/** Заменяет отметку: время и мл можно поправить. */
-export function replaceFeed(state: AppState, oldAt: string, entry: FeedEntry): AppState {
-  return addFeed(removeFeed(state, oldAt), entry);
+/** Поправить время отметки. */
+export function moveFeed(state: AppState, oldAt: string, at: string): AppState {
+  return addFeed(removeFeed(state, oldAt), at);
 }
 
-const minutesBetween = (fromAt: string, now: Date): number => {
-  const [d, t] = fromAt.split('T') as [string, string];
+const toDate = (at: string): Date => {
+  const [d, t] = at.split('T') as [string, string];
   const [y, mo, day] = d.split('-').map(Number) as [number, number, number];
   const [h, mi] = t.split(':').map(Number) as [number, number];
-  const from = new Date(y, mo - 1, day, h, mi);
-  return Math.max(0, Math.floor((now.getTime() - from.getTime()) / 60000));
+  return new Date(y, mo - 1, day, h, mi);
 };
 
-/** 161 → «2 ч 41 мин назад». */
-export function formatSince(minutes: number): string {
-  if (minutes < 1) return 'только что';
+const minutesBetween = (from: Date, to: Date): number =>
+  Math.max(0, Math.round((to.getTime() - from.getTime()) / 60000));
+
+/** 161 → «2 ч 41 мин». */
+export function formatDuration(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  if (h === 0) return `${m} мин назад`;
-  return m === 0 ? `${h} ч назад` : `${h} ч ${m} мин назад`;
+  if (h === 0) return `${m} мин`;
+  return m === 0 ? `${h} ч` : `${h} ч ${m} мин`;
+}
+
+/** 161 → «2 ч 41 мин назад». */
+export const formatSince = (minutes: number): string =>
+  minutes < 1 ? 'только что' : `${formatDuration(minutes)} назад`;
+
+export interface FeedRow {
+  at: string;
+  time: string;
+  /** Промежуток от предыдущего кормления (может быть вчерашним): «через 3 ч 25 мин». */
+  gap: string | null;
 }
 
 export interface FeedDayView {
   date: string;
   count: number;
-  /** Сумма указанных мл. */
-  totalMl: number;
-  /** Сколько отметок без мл. */
-  withoutMl: number;
   /** Отметки за сегодня, новые сверху. */
-  entries: { at: string; time: string; ml: number | null }[];
+  entries: FeedRow[];
   /** Последнее кормление, может быть вчерашним. */
-  lastAt: string | null;
+  lastTime: string | null;
   since: string | null;
 }
-
-const sumMl = (entries: FeedEntry[]): number => entries.reduce((s, e) => s + (e.ml ?? 0), 0);
 
 /** Кормления за сегодня (календарные сутки по времени устройства). */
 export function feedDay(log: FeedEntry[], now: Date): FeedDayView {
   const date = localDate(now);
-  const today = log.filter((e) => e.at.startsWith(date));
+  const entries: FeedRow[] = [];
+  log.forEach((e, i) => {
+    if (!e.at.startsWith(date)) return;
+    const prev = log[i - 1];
+    entries.push({
+      at: e.at,
+      time: e.at.slice(11),
+      gap: prev ? `через ${formatDuration(minutesBetween(toDate(prev.at), toDate(e.at)))}` : null,
+    });
+  });
   const last = log[log.length - 1] ?? null;
   return {
     date,
-    count: today.length,
-    totalMl: sumMl(today),
-    withoutMl: today.filter((e) => e.ml === null).length,
-    entries: today
-      .map((e) => ({ at: e.at, time: e.at.slice(11), ml: e.ml }))
-      .reverse(),
-    lastAt: last?.at ?? null,
-    since: last ? formatSince(minutesBetween(last.at, now)) : null,
+    count: entries.length,
+    entries: entries.reverse(),
+    lastTime: last ? (last.at.startsWith(date) ? last.at.slice(11) : `вчера ${last.at.slice(11)}`) : null,
+    since: last ? formatSince(minutesBetween(toDate(last.at), now)) : null,
   };
+}
+
+/** Кружочки «сколько из плана»: закрашено count, всего не меньше верхней границы плана. */
+export function feedDots(count: number, planMax: number): boolean[] {
+  return Array.from({ length: Math.max(count, planMax) }, (_, i) => i < count);
 }
 
 export interface FeedHistoryDay {
   date: string;
   count: number;
-  totalMl: number;
-  withoutMl: number;
   times: string[];
 }
 
 /** Прошлые дни (без сегодняшнего), новые сверху. */
 export function feedHistory(log: FeedEntry[], now: Date): FeedHistoryDay[] {
   const today = localDate(now);
-  const days = new Map<string, FeedEntry[]>();
+  const days = new Map<string, string[]>();
   for (const e of log) {
     const date = e.at.slice(0, 10);
     if (date >= today) continue;
-    const list = days.get(date) ?? [];
-    list.push(e);
-    days.set(date, list);
+    days.set(date, [...(days.get(date) ?? []), e.at.slice(11)]);
   }
   return [...days.entries()]
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([date, entries]) => ({
-      date,
-      count: entries.length,
-      totalMl: sumMl(entries),
-      withoutMl: entries.filter((e) => e.ml === null).length,
-      times: entries.map((e) => e.at.slice(11)),
-    }));
+    .map(([date, times]) => ({ date, count: times.length, times }));
 }
