@@ -445,9 +445,24 @@ el('showAll').addEventListener('click', () => {
   render();
 });
 
-el<HTMLInputElement>('feedTime').addEventListener('input', () => {
-  feedTimeTouched = true;
+/**
+ * Пустое поле времени (кнопка «Сбросить» в выборе времени на iPhone) заполняется снова:
+ * при новой отметке текущим временем, при правке — временем этой отметки.
+ */
+function onFeedTimeInput(): void {
+  const input = el<HTMLInputElement>('feedTime');
+  if (input.value) {
+    feedTimeTouched = true;
+  } else {
+    feedTimeTouched = false;
+    input.value = editingFeed ? editingFeed.slice(11) : timeNow(new Date());
+  }
   renderFeeds();
+}
+el<HTMLInputElement>('feedTime').addEventListener('input', onFeedTimeInput);
+el<HTMLInputElement>('feedTime').addEventListener('change', onFeedTimeInput);
+el<HTMLInputElement>('feedTime').addEventListener('blur', () => {
+  if (!el<HTMLInputElement>('feedTime').value) onFeedTimeInput();
 });
 
 el('feedSave').addEventListener('click', () => {
