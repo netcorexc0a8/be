@@ -36,6 +36,27 @@
     <div class="notes" id="notes"></div>
   </section>
 
+  <section class="panel" aria-label="Кормления сегодня">
+    <div class="feeds">
+      <div class="label">Кормления сегодня</div>
+      <div class="feed-sum" id="feedSum" aria-live="polite"></div>
+      <div class="feed-form">
+        <label><span>Время</span><input type="time" id="feedTime"></label>
+        <label><span>Выпито, мл</span><input type="text" id="feedMl" inputmode="numeric" autocomplete="off" placeholder="—"></label>
+        <button class="btn" type="button" id="feedSave">Покормили</button>
+        <button class="btn ghost" type="button" id="feedCancel" hidden>Отмена</button>
+      </div>
+      <div class="hint-text" id="feedYesterday" hidden>Время позже текущего: запишется на вчера.</div>
+      <div class="note err" id="feedError" role="alert" hidden></div>
+      <div class="wlist" id="feedList"></div>
+      <details class="feed-days" id="feedDaysBox" hidden>
+        <summary>Прошлые дни</summary>
+        <div class="wlist" id="feedDays"></div>
+        <button type="button" class="more" id="feedDaysAll" hidden></button>
+      </details>
+    </div>
+  </section>
+
   <section class="panel" aria-label="Данные для расчёта">
     <div class="row">
       <span class="rl">Кормлений в сутки<span class="hint">выбираете сами, можно диапазон</span></span>
