@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   addFeed,
   dayTimeline,
+  editFeedAt,
   formatGapShort,
   weekRhythm,
   feedDay,
-  feedDots,
   feedHistory,
   formatSince,
   isYesterday,
@@ -117,16 +117,17 @@ describe('кормления за день', () => {
     expect(feedDay([], NOW)).toMatchObject({ count: 0, entries: [], lastTime: null, since: null });
   });
 
-  it('кружочки: закрашено сколько было, всего по верхней границе плана', () => {
-    expect(feedDots(4, 7)).toEqual([true, true, true, true, false, false, false]);
-    expect(feedDots(8, 7)).toHaveLength(8);
-    expect(feedDots(0, 6).every((d) => !d)).toBe(true);
-  });
-
   it('прошлые дни: новые сверху, без сегодняшнего', () => {
     expect(feedHistory([{ at: '2026-11-12T08:00' }, { at: '2026-11-12T11:00' }, ...log], NOW)).toEqual([
-      { date: '2026-11-13', count: 1, times: ['22:40'] },
-      { date: '2026-11-12', count: 2, times: ['08:00', '11:00'] },
+      { date: '2026-11-13', count: 1, entries: [{ at: '2026-11-13T22:40', time: '22:40' }] },
+      {
+        date: '2026-11-12',
+        count: 2,
+        entries: [
+          { at: '2026-11-12T08:00', time: '08:00' },
+          { at: '2026-11-12T11:00', time: '11:00' },
+        ],
+      },
     ]);
   });
 });
@@ -187,5 +188,18 @@ describe('графики кормлений', () => {
     expect(formatGapShort(45)).toBe('45 мин');
     expect(formatGapShort(180)).toBe('3 ч');
     expect(formatGapShort(185)).toBe('3 ч 05');
+  });
+});
+
+describe('правка отметки', () => {
+  it('день отметки сохраняется, меняется только время (вчерашнюю можно поправить)', () => {
+    expect(editFeedAt('2026-11-13T22:40', '10:00', NOW)).toEqual({ ok: true, at: '2026-11-13T10:00' });
+    expect(editFeedAt('2026-11-14T13:40', '12:00', NOW)).toEqual({ ok: true, at: '2026-11-14T12:00' });
+  });
+
+  it('время в будущем и неверное время не принимаются', () => {
+    expect(editFeedAt('2026-11-14T13:40', '15:00', NOW)).toEqual({ ok: false, error: 'Это время ещё не наступило.' });
+    expect(editFeedAt('2026-11-14T13:40', '', NOW).ok).toBe(false);
+    expect(editFeedAt('2026-11-14T13:40', '24:00', NOW).ok).toBe(false);
   });
 });

@@ -44,6 +44,20 @@ export function resolveFeedAt(time: string, now: Date): string | null {
   return localAt(at);
 }
 
+export type EditFeedResult = { ok: true; at: string } | { ok: false; error: string };
+
+/**
+ * Новое время для отметки, которую правят: день отметки сохраняется, меняется только время.
+ * Время в будущем не принимается.
+ */
+export function editFeedAt(oldAt: string, time: string, now: Date): EditFeedResult {
+  const m = /^(\d{2}):(\d{2})$/.exec(time.trim());
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return { ok: false, error: 'Укажите время кормления.' };
+  const at = `${oldAt.slice(0, 10)}T${m[1]}:${m[2]}`;
+  if (at > localAt(now)) return { ok: false, error: 'Это время ещё не наступило.' };
+  return { ok: true, at };
+}
+
 /** true, если время из поля будет записано на вчера. */
 export function isYesterday(time: string, now: Date): boolean {
   const at = resolveFeedAt(time, now);
@@ -127,29 +141,25 @@ export function feedDay(log: FeedEntry[], now: Date): FeedDayView {
   };
 }
 
-/** Кружочки «сколько из плана»: закрашено count, всего не меньше верхней границы плана. */
-export function feedDots(count: number, planMax: number): boolean[] {
-  return Array.from({ length: Math.max(count, planMax) }, (_, i) => i < count);
-}
-
 export interface FeedHistoryDay {
   date: string;
   count: number;
-  times: string[];
+  /** Отметки дня по порядку: полное время отметки и «ЧЧ:ММ». */
+  entries: { at: string; time: string }[];
 }
 
 /** Прошлые дни (без сегодняшнего), новые сверху. */
 export function feedHistory(log: FeedEntry[], now: Date): FeedHistoryDay[] {
   const today = localDate(now);
-  const days = new Map<string, string[]>();
+  const days = new Map<string, { at: string; time: string }[]>();
   for (const e of log) {
     const date = e.at.slice(0, 10);
     if (date >= today) continue;
-    days.set(date, [...(days.get(date) ?? []), e.at.slice(11)]);
+    days.set(date, [...(days.get(date) ?? []), { at: e.at, time: e.at.slice(11) }]);
   }
   return [...days.entries()]
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([date, times]) => ({ date, count: times.length, times }));
+    .map(([date, entries]) => ({ date, count: entries.length, entries }));
 }
 
 const MIN_PER_DAY = 1440;
