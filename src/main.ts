@@ -29,7 +29,7 @@ import {
   saveState,
   type AppState,
 } from './app/state';
-import { addFeed, dayTimeline, editFeedAt, feedDay, feedHistory, isYesterday, moveFeed, removeFeed, resolveFeedAt, timeNow, weekRhythm, type DayTimeline, type RhythmRow } from './app/feeds';
+import { addFeed, dayTimeline, editFeedAt, feedDay, feedHistory, isYesterday, moveFeed, recentTimeline, removeFeed, resolveFeedAt, timeNow, weekRhythm, type RecentTimeline, type RhythmRow } from './app/feeds';
 import { buildView, CHART, formatDayMonth, formatInt, formatScoops, plural, scoopDiff, type WeightChart } from './app/view';
 
 const storage = (() => {
@@ -239,7 +239,7 @@ function renderFeeds(): void {
   el('feedHint').textContent = hint;
   el('feedHint').hidden = hint === '';
 
-  el('feedLine').innerHTML = timelineSvg(dayTimeline(state.feedLog, now));
+  el('feedLine').innerHTML = timelineSvg(recentTimeline(state.feedLog, now));
   const week = weekRhythm(state.feedLog, now);
   const hasWeek = week.some((r) => !r.today && r.xs.length > 0);
   el('feedWeekBox').hidden = !hasWeek;
@@ -280,44 +280,49 @@ function renderFeeds(): void {
 
 const fx = (x: number, left: number, width: number): string => (left + x * width).toFixed(1);
 
-/** Лента сегодняшних суток: точки кормлений, промежутки над ними, отметка «сейчас». */
-function timelineSvg(t: DayTimeline): string {
+/** Лента за последние 24 часа: точки кормлений, промежутки над ними, «сейчас» у правого края. */
+function timelineSvg(t: RecentTimeline): string {
   const L = 6;
   const W = 298;
+  const R = L + W;
   const y = 40;
-  const nowX = Number(fx(t.now, L, W));
-  // подпись промежутка, только если она помещается между точками
-  const nowX0 = Number(fx(t.now, L, W));
-  const nowLeftEdge = nowX0 + 6 + 46 <= L + W ? Infinity : nowX0 - 6 - 46;
+  // подписи промежутков над лентой в один ряд; если подпись налезает на соседнюю, она не рисуется
+  let rowEnd = -Infinity;
   const gaps = t.gaps
-    .filter((g) => (g.to - g.from) * W >= 40 && L + ((g.from + g.to) / 2) * W + 20 < nowLeftEdge)
-    .map((g) => `<text x="${fx((g.from + g.to) / 2, L, W)}" y="${y - 20}" text-anchor="middle">${g.label}</text>`)
-    .join('');
-  // «сейчас» справа от отметки, а в конце суток — слева
-  const nowRight = nowX + 6 + 46 <= L + W;
-  const nowLabel = nowRight
-    ? `<text class="now" x="${nowX + 6}" y="${y - 20}">сейчас</text>`
-    : `<text class="now" x="${nowX - 6}" y="${y - 20}" text-anchor="end">сейчас</text>`;
-  // время под точкой, если не налезает на соседнее
-  let prevLabelX = -Infinity;
-  const times = t.points
-    .map((p) => {
-      const x = Number(fx(p.x, L, W));
-      if (x - prevLabelX < 34) return '';
-      prevLabelX = x;
-      return `<text class="t" x="${x}" y="${y + 30}" text-anchor="middle">${p.time}</text>`;
+    .map((g) => {
+      const cx = L + ((g.from + g.to) / 2) * W;
+      const half = (g.label.length * 5.6) / 2 + 2;
+      if (cx - half < rowEnd) return '';
+      rowEnd = cx + half;
+      return `<text class="gap" x="${cx.toFixed(1)}" y="${y - 20}" text-anchor="middle">${g.label}</text>`;
     })
     .join('');
-  return `<rect x="${L}" y="${y - 14}" width="${W}" height="28" rx="14" fill="var(--bg)"/>
-    <rect x="${L}" y="${y - 14}" width="${Math.max(nowX - L, 0)}" height="28" rx="14" fill="var(--accent-soft)"/>
+  // время под точкой: у краёв подпись сдвигается внутрь; если налезает на соседнюю, не рисуется
+  const centerOf = (i: number): number => Math.min(Math.max(L + t.points[i]!.x * W, L + 16), R - 16);
+  const labelled: number[] = [];
+  for (let i = t.points.length - 1; i >= 0; i--) {
+    const last = labelled[labelled.length - 1];
+    if (last === undefined || centerOf(last) - centerOf(i) >= 36) labelled.push(i);
+  }
+  const times = labelled
+    .map((i) => `<text class="t" x="${centerOf(i).toFixed(1)}" y="${y + 30}" text-anchor="middle">${t.points[i]!.time}</text>`)
+    .join('');
+  // «сейчас» подписано в строке часов у правого края; засечку часа рядом с ним не подписываем
+  const ticks = t.ticks
+    .filter((k) => L + k.x * W < R - 40)
+    .map((k) => {
+      const x = L + k.x * W;
+      return `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${y - 14}" y2="${y + 14}" stroke="var(--line)"/>
+        <text x="${x.toFixed(1)}" y="${y + 52}" text-anchor="middle">${k.label}</text>`;
+    })
+    .join('');
+  return `<rect x="${L}" y="${y - 14}" width="${W}" height="28" rx="14" fill="var(--accent-soft)"/>
+    ${ticks}
     ${gaps}
+    <line x1="${R - 1}" x2="${R - 1}" y1="${y - 16}" y2="${y + 16}" stroke="var(--now)" stroke-width="2"/>
+    <text class="now" x="${R}" y="${y + 52}" text-anchor="end">сейчас</text>
     ${t.points.map((p) => `<circle cx="${fx(p.x, L, W)}" cy="${y}" r="8" fill="var(--accent)" stroke="var(--card)" stroke-width="2"/>`).join('')}
-    ${times}
-    <line x1="${nowX}" x2="${nowX}" y1="${y - 16}" y2="${y + 16}" stroke="var(--now)" stroke-width="2"/>
-    ${nowLabel}
-    ${[0, 6, 12, 18, 24]
-      .map((h) => `<text x="${fx(h / 24, L, W)}" y="${y + 52}" text-anchor="${h === 0 ? 'start' : h === 24 ? 'end' : 'middle'}">${String(h).padStart(2, '0')}</text>`)
-      .join('')}`;
+    ${times}`;
 }
 
 /** «13 нояб.» */

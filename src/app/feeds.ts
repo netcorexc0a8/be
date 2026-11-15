@@ -165,12 +165,12 @@ export function feedHistory(log: FeedEntry[], now: Date): FeedHistoryDay[] {
 const MIN_PER_DAY = 1440;
 const minuteOfDay = (at: string): number => Number(at.slice(11, 13)) * 60 + Number(at.slice(14, 16));
 
-/** 210 → «3 ч 30», 180 → «3 ч», 45 → «45 мин»: подпись промежутка на графике. */
+/** 210 → «3ч30», 180 → «3ч», 45 → «45м»: короткая подпись промежутка на ленте. */
 export function formatGapShort(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  if (h === 0) return `${m} мин`;
-  return m === 0 ? `${h} ч` : `${h} ч ${pad(m)}`;
+  if (h === 0) return `${m}м`;
+  return m === 0 ? `${h}ч` : `${h}ч${pad(m)}`;
 }
 
 export interface DayTimeline {
@@ -217,4 +217,42 @@ export function weekRhythm(log: FeedEntry[], now: Date, days = 7): RhythmRow[] {
     });
   }
   return rows;
+}
+
+export interface RecentTimeline {
+  /** Кормления за последние 24 часа по порядку: положение от 0 (24 ч назад) до 1 (сейчас) и время. */
+  points: { x: number; time: string }[];
+  /** Промежутки между соседними кормлениями: от, до (0…1) и подпись. */
+  gaps: { from: number; to: number; label: string }[];
+  /** Отметки часов 00, 06, 12, 18 на ленте. */
+  ticks: { x: number; label: string }[];
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Лента «последние 24 часа»: сейчас у правого края, ночь не разрывается в полночь. */
+export function recentTimeline(log: FeedEntry[], now: Date): RecentTimeline {
+  const end = now.getTime();
+  const start = end - DAY_MS;
+  const pos = (t: number): number => (t - start) / DAY_MS;
+  const recent = log
+    .map((e) => ({ e, t: toDate(e.at).getTime() }))
+    .filter(({ t }) => t > start && t <= end);
+  const ticks: { x: number; label: string }[] = [];
+  for (let back = 0; back <= 1; back++) {
+    for (const h of [0, 6, 12, 18]) {
+      const t = new Date(now.getFullYear(), now.getMonth(), now.getDate() - back, h, 0).getTime();
+      if (t > start && t <= end) ticks.push({ x: pos(t), label: pad(h) });
+    }
+  }
+  ticks.sort((a, b) => a.x - b.x);
+  return {
+    points: recent.map(({ e, t }) => ({ x: pos(t), time: e.at.slice(11) })),
+    gaps: recent.slice(1).map(({ t }, i) => ({
+      from: pos(recent[i]!.t),
+      to: pos(t),
+      label: formatGapShort(minutesBetween(new Date(recent[i]!.t), new Date(t))),
+    })),
+    ticks,
+  };
 }
