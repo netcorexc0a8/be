@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addFeed,
   dayTimeline,
+  recentTimeline,
   editFeedAt,
   formatGapShort,
   weekRhythm,
@@ -201,5 +202,30 @@ describe('правка отметки', () => {
     expect(editFeedAt('2026-11-14T13:40', '15:00', NOW)).toEqual({ ok: false, error: 'Это время ещё не наступило.' });
     expect(editFeedAt('2026-11-14T13:40', '', NOW).ok).toBe(false);
     expect(editFeedAt('2026-11-14T13:40', '24:00', NOW).ok).toBe(false);
+  });
+});
+
+describe('лента за последние 24 часа', () => {
+  const at4 = new Date(2026, 10, 15, 4, 6);
+  const log: FeedEntry[] = [
+    { at: '2026-11-14T03:00' }, // старше 24 часов
+    { at: '2026-11-14T18:06' },
+    { at: '2026-11-14T21:36' },
+    { at: '2026-11-15T00:36' },
+    { at: '2026-11-15T03:40' },
+  ];
+
+  it('вчерашний вечер и ночь видны, сейчас у правого края', () => {
+    const t = recentTimeline(log, at4);
+    expect(t.points.map((p) => p.time)).toEqual(['18:06', '21:36', '00:36', '03:40']);
+    expect(t.points[0]!.x).toBeCloseTo(14 / 24);
+    expect(t.points[3]!.x).toBeCloseTo(1 - 26 / 1440);
+    expect(t.gaps.map((g) => g.label)).toEqual(['3 ч 30', '3 ч', '3 ч 04']);
+  });
+
+  it('часы на ленте по порядку: 06, 12, 18 вчера и 00 сегодня', () => {
+    const t = recentTimeline([], at4);
+    expect(t.ticks.map((k) => k.label)).toEqual(['06', '12', '18', '00']);
+    expect(t.ticks[3]!.x).toBeCloseTo(1 - (4 * 60 + 6) / 1440);
   });
 });
