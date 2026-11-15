@@ -173,7 +173,7 @@ select { width: auto; max-width: 100%; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --now: #F59E62; } }
 :root[data-theme="dark"] { --now: #F59E62; }
 .feed-line, .feed-week svg { width: 100%; height: auto; display: block; overflow: visible; font-family: var(--font-body); font-variant-numeric: tabular-nums; }
-.feed-line { aspect-ratio: 310 / 114; }
+.feed-line { aspect-ratio: 310 / 100; }
 .feed-week svg { aspect-ratio: 310 / 240; }
 .feed-line text, .feed-week text { font-size: 11px; fill: var(--muted); }
 .feed-line text.t { fill: var(--fg); font-weight: 600; font-size: 10px; }

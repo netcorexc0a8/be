@@ -285,17 +285,16 @@ function timelineSvg(t: RecentTimeline): string {
   const L = 6;
   const W = 298;
   const R = L + W;
-  const y = 54;
-  // подписи промежутков над лентой в два ряда: если подпись не помещается в нижний ряд, она идёт в верхний
-  const rowEnds = [-Infinity, -Infinity];
+  const y = 40;
+  // подписи промежутков над лентой в один ряд; если подпись налезает на соседнюю, она не рисуется
+  let rowEnd = -Infinity;
   const gaps = t.gaps
     .map((g) => {
       const cx = L + ((g.from + g.to) / 2) * W;
       const half = (g.label.length * 5.6) / 2 + 2;
-      const row = rowEnds.findIndex((end) => cx - half >= end);
-      if (row < 0) return '';
-      rowEnds[row] = cx + half;
-      return `<text class="gap" x="${cx.toFixed(1)}" y="${y - 20 - row * 14}" text-anchor="middle">${g.label}</text>`;
+      if (cx - half < rowEnd) return '';
+      rowEnd = cx + half;
+      return `<text class="gap" x="${cx.toFixed(1)}" y="${y - 20}" text-anchor="middle">${g.label}</text>`;
     })
     .join('');
   // время под точкой: у краёв подпись сдвигается внутрь; если налезает на соседнюю, не рисуется
