@@ -285,12 +285,18 @@ function timelineSvg(t: RecentTimeline): string {
   const L = 6;
   const W = 298;
   const R = L + W;
-  const y = 40;
-  const nowLabelLeft = R - 6 - 50;
-  // подпись промежутка, только если она помещается между точками и не налезает на «сейчас»
+  const y = 54;
+  // подписи промежутков над лентой в два ряда: если подпись не помещается в нижний ряд, она идёт в верхний
+  const rowEnds = [-Infinity, -Infinity];
   const gaps = t.gaps
-    .filter((g) => (g.to - g.from) * W >= 36 && L + ((g.from + g.to) / 2) * W + 18 < nowLabelLeft)
-    .map((g) => `<text class="gap" x="${fx((g.from + g.to) / 2, L, W)}" y="${y - 20}" text-anchor="middle">${g.label}</text>`)
+    .map((g) => {
+      const cx = L + ((g.from + g.to) / 2) * W;
+      const half = (g.label.length * 5.6) / 2 + 2;
+      const row = rowEnds.findIndex((end) => cx - half >= end);
+      if (row < 0) return '';
+      rowEnds[row] = cx + half;
+      return `<text class="gap" x="${cx.toFixed(1)}" y="${y - 20 - row * 14}" text-anchor="middle">${g.label}</text>`;
+    })
     .join('');
   // время под точкой: у краёв подпись сдвигается внутрь; если налезает на соседнюю, не рисуется
   const centerOf = (i: number): number => Math.min(Math.max(L + t.points[i]!.x * W, L + 16), R - 16);
@@ -302,7 +308,9 @@ function timelineSvg(t: RecentTimeline): string {
   const times = labelled
     .map((i) => `<text class="t" x="${centerOf(i).toFixed(1)}" y="${y + 30}" text-anchor="middle">${t.points[i]!.time}</text>`)
     .join('');
+  // «сейчас» подписано в строке часов у правого края; засечку часа рядом с ним не подписываем
   const ticks = t.ticks
+    .filter((k) => L + k.x * W < R - 40)
     .map((k) => {
       const x = L + k.x * W;
       return `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${y - 14}" y2="${y + 14}" stroke="var(--line)"/>
@@ -313,7 +321,7 @@ function timelineSvg(t: RecentTimeline): string {
     ${ticks}
     ${gaps}
     <line x1="${R - 1}" x2="${R - 1}" y1="${y - 16}" y2="${y + 16}" stroke="var(--now)" stroke-width="2"/>
-    <text class="now" x="${R}" y="${y - 20}" text-anchor="end">сейчас</text>
+    <text class="now" x="${R}" y="${y + 52}" text-anchor="end">сейчас</text>
     ${t.points.map((p) => `<circle cx="${fx(p.x, L, W)}" cy="${y}" r="8" fill="var(--accent)" stroke="var(--card)" stroke-width="2"/>`).join('')}
     ${times}`;
 }
