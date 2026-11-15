@@ -159,7 +159,7 @@ describe('графики кормлений', () => {
       { x: 360 / 1440, time: '06:00' },
       { x: 720 / 1440, time: '12:00' },
     ]);
-    expect(t.gaps.map((g) => g.label)).toEqual(['3 ч 50', '6 ч']);
+    expect(t.gaps.map((g) => g.label)).toEqual(['3ч50', '6ч']);
     expect(t.gaps[0]).toMatchObject({ from: 130 / 1440, to: 360 / 1440 });
   });
 
@@ -186,9 +186,9 @@ describe('графики кормлений', () => {
   });
 
   it('короткая подпись промежутка', () => {
-    expect(formatGapShort(45)).toBe('45 мин');
-    expect(formatGapShort(180)).toBe('3 ч');
-    expect(formatGapShort(185)).toBe('3 ч 05');
+    expect(formatGapShort(45)).toBe('45м');
+    expect(formatGapShort(180)).toBe('3ч');
+    expect(formatGapShort(185)).toBe('3ч05');
   });
 });
 
@@ -220,7 +220,7 @@ describe('лента за последние 24 часа', () => {
     expect(t.points.map((p) => p.time)).toEqual(['18:06', '21:36', '00:36', '03:40']);
     expect(t.points[0]!.x).toBeCloseTo(14 / 24);
     expect(t.points[3]!.x).toBeCloseTo(1 - 26 / 1440);
-    expect(t.gaps.map((g) => g.label)).toEqual(['3 ч 30', '3 ч', '3 ч 04']);
+    expect(t.gaps.map((g) => g.label)).toEqual(['3ч30', '3ч', '3ч04']);
   });
 
   it('часы на ленте по порядку: 06, 12, 18 вчера и 00 сегодня', () => {

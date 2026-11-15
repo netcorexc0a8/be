@@ -165,12 +165,12 @@ export function feedHistory(log: FeedEntry[], now: Date): FeedHistoryDay[] {
 const MIN_PER_DAY = 1440;
 const minuteOfDay = (at: string): number => Number(at.slice(11, 13)) * 60 + Number(at.slice(14, 16));
 
-/** 210 → «3 ч 30», 180 → «3 ч», 45 → «45 мин»: подпись промежутка на графике. */
+/** 210 → «3ч30», 180 → «3ч», 45 → «45м»: короткая подпись промежутка на ленте. */
 export function formatGapShort(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  if (h === 0) return `${m} мин`;
-  return m === 0 ? `${h} ч` : `${h} ч ${pad(m)}`;
+  if (h === 0) return `${m}м`;
+  return m === 0 ? `${h}ч` : `${h}ч${pad(m)}`;
 }
 
 export interface DayTimeline {
